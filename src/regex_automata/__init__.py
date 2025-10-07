@@ -1,17 +1,18 @@
-from .pattern import Pattern
+from .regex.match import Match
+from .regex.pattern import Pattern
 
 __version__ = "0.1.0"
 
 
-def fullmatch(pattern: str, s: str) -> bool:
+def fullmatch(pattern: str, s: str) -> Match | None:
     return Pattern(pattern).fullmatch(s)
 
 
-def match(pattern: str, s: str) -> bool:
+def match(pattern: str, s: str) -> Match | None:
     return Pattern(pattern).match(s)
 
 
-def search(pattern: str, s: str) -> bool:
+def search(pattern: str, s: str) -> Match | None:
     return Pattern(pattern).search(s)
 
 
