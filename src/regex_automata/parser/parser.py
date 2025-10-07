@@ -61,9 +61,7 @@ class Parser:
         """
         # F
         match self.peek():
-            case LPar():
-                F = self.p4()
-            case Character():
+            case LPar() | Character():
                 F = self.p4()
             case _:
                 self.error()
@@ -73,9 +71,7 @@ class Parser:
         match self.peek():
             case Pipe():
                 Eprime = self.p2()
-            case RPar():
-                Eprime = self.p3()
-            case None:
+            case RPar() | None:
                 Eprime = self.p3()
             case _:
                 self.error()
@@ -95,9 +91,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar():
-                E = self.p1()
-            case Character():
+            case LPar() | Character():
                 E = self.p1()
             case _:
                 self.error()
@@ -109,7 +103,6 @@ class Parser:
         """
         E' -> ε
         """
-
         return None
 
     @rule
@@ -119,9 +112,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar():
-                G = self.p7()
-            case Character():
+            case LPar() | Character():
                 G = self.p7()
             case _:
                 self.error()
@@ -129,15 +120,9 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar():
+            case LPar() | Character():
                 Fprime = self.p5()
-            case Character():
-                Fprime = self.p5()
-            case Pipe():
-                Fprime = self.p6()
-            case RPar():
-                Fprime = self.p6()
-            case None:
+            case Pipe() | RPar() | None:
                 Fprime = self.p6()
             case _:
                 self.error()
@@ -154,9 +139,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar():
-                G = self.p7()
-            case Character():
+            case LPar() | Character():
                 G = self.p7()
             case _:
                 self.error()
@@ -164,15 +147,9 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar():
+            case LPar() | Character():
                 Fprime = self.p5()
-            case Character():
-                Fprime = self.p5()
-            case Pipe():
-                Fprime = self.p6()
-            case RPar():
-                Fprime = self.p6()
-            case None:
+            case Pipe() | RPar() | None:
                 Fprime = self.p6()
             case _:
                 self.error()
@@ -205,17 +182,9 @@ class Parser:
 
         # G'
         match self.peek():
-            case LPar():
-                Gprime = self.p9(H)
-            case Character():
-                Gprime = self.p9(H)
-            case Pipe():
-                Gprime = self.p9(H)
             case Star():
                 Gprime = self.p8(H)
-            case RPar():
-                Gprime = self.p9(H)
-            case None:
+            case LPar() | Character() | Pipe() | RPar() | None:
                 Gprime = self.p9(H)
             case _:
                 self.error()
@@ -247,9 +216,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar():
-                E = self.p1()
-            case Character():
+            case LPar() | Character():
                 E = self.p1()
             case _:
                 self.error()
