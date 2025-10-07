@@ -31,3 +31,9 @@ def test_parse_tree_union_parens():
             AstConcatenation(AstCharacter("g"), AstCharacter("h")),
         )
     )
+
+@pytest.mark.parametrize("pattern", ["a?", "a+", "[0-9]", "a{1,3}", "a{1,}", "a{,3}",
+                                     "^foo", "bar$", ".*", "\\"])
+def test_tokenizer_errors_in_pattern(pattern):
+    with pytest.raises(Exception):
+        list(Tokenizer(pattern).get_tokens())
