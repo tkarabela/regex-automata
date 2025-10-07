@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Self, Any, Iterable
+from typing import Self, Any
 import json
 from abc import ABC, abstractmethod
 from itertools import count
