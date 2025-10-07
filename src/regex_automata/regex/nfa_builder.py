@@ -6,8 +6,12 @@ class NFABuilder:
     def __init__(self, root: AstNode) -> None:
         self.root = root
 
-    def build(self) -> NFA:
-        return self.convert(self.root)
+    def build(self, epsilon_free: bool) -> NFA:
+        nfa = self.convert(self.root)
+        if epsilon_free:
+            return nfa.get_epsilon_free_nfa()
+        else:
+            return nfa
 
     def convert(self, node: AstNode) -> NFA:
         match node:
@@ -17,7 +21,7 @@ class NFABuilder:
                 nfa = self.convert(u)
                 for x in nfa.final_states:
                     nfa.transitions.setdefault(x, {}).setdefault("", set()).add(nfa.initial_state)
-                nfa.final_states = list(sorted(nfa.epsilon_closure(nfa.final_states)))
+                nfa.final_states = list(sorted(nfa.epsilon_closure(set(nfa.final_states))))
                 return nfa
             case AstUnion(u, v):
                 nfa_u = self.convert(u)

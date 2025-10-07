@@ -33,7 +33,7 @@ class Pattern:
             ])
             raise PatternError(msg) from e
 
-        self.nfa = NFABuilder(self.ast).build()
+        self.nfa = NFABuilder(self.ast).build(epsilon_free=True)
         self.pattern = pattern
 
     def render_nfa(self, output_path: str = "nfa.png") -> None:

@@ -106,7 +106,7 @@ class NFA(FiniteAutomaton):
             },
         )
 
-    def epsilon_closure(self, states: Iterable[int]) -> set[int]:
+    def epsilon_closure(self, states: set[int]) -> set[int]:
         closure = set(states)
         while True:
             new_closure = closure
@@ -116,3 +116,54 @@ class NFA(FiniteAutomaton):
                 break
             closure = new_closure
         return closure
+
+    def get_epsilon_free_nfa(self) -> "EpsilonFreeNFA":
+        states = set(self.states)
+        initial_state = self.initial_state
+        final_states = set(self.final_states)
+        transitions: dict[int, dict[str, set[int]]] = {}
+
+        for u in self.states:
+            closure = self.epsilon_closure({u})
+            for v in closure:
+                transitions_u = transitions.setdefault(u, {})
+                for c, ws in self.transitions.get(v, {}).items():
+                    if c != "":
+                        transitions_u.setdefault(c, set()).update(ws)
+
+                if v in self.final_states:
+                    final_states.add(u)
+
+        reachable_states = {initial_state}
+        while True:
+            new_reachable_states = set(reachable_states)
+            for u in reachable_states:
+                for vs in transitions.get(u, {}).values():
+                    new_reachable_states.update(vs)
+            if len(reachable_states) == len(new_reachable_states):
+                break
+            reachable_states = new_reachable_states
+
+        for x in states - reachable_states:
+            if x in transitions:
+                transitions.pop(x)
+
+            for u, transitions_u in transitions.items():
+                for c, vs in list(transitions_u.items()):
+                    if x in vs:
+                        vs.remove(x)
+                        if not vs:
+                            transitions_u.pop(c)
+
+        return EpsilonFreeNFA(
+            states=list(sorted(reachable_states)),
+            initial_state=initial_state,
+            final_states=list(sorted(final_states)),
+            transitions=transitions,
+        )
+
+
+@dataclass
+class EpsilonFreeNFA(NFA):
+    def epsilon_closure(self, states: set[int]) -> set[int]:
+        return states
