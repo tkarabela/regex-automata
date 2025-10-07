@@ -1,8 +1,10 @@
 import functools
+from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
 from .tokens import Token, LPar, RPar, Star, Pipe, Character
 from .ast import AstNode, AstUnion, AstIteration, AstCharacter, AstConcatenation
-from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
+from ..errors import ParserError
+
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -21,12 +23,17 @@ class Parser:
     def __init__(self, tokens: list[Token]):
         self.tokens = list(tokens)
         self.pos = -1
+        self.string_pos = -1
 
     def read(self, cls: Type[TToken]) -> TToken:
         self.pos += 1
-        t = self.tokens[self.pos]
+        try:
+            t = self.tokens[self.pos]
+        except IndexError:
+            self.error(f"expected {cls.__name__}, got end of input")
+        self.string_pos = t.span[-1] - 1
         if not isinstance(t, cls):
-            self.error()
+            self.error(f"expected {cls.__name__}, read {t.__class__.__name__}")
         else:
             print("reading", t)
             return t
@@ -35,13 +42,16 @@ class Parser:
         i = self.pos + 1
         return self.tokens[i] if i < len(self.tokens) else None
 
-    def error(self) -> NoReturn:
-        raise RuntimeError(f"parsing error at pos={self.pos}")
+    def error(self, description: str | None = None) -> NoReturn:
+        msg = f"error at position {self.string_pos}"
+        if description:
+            msg += f": {description}"
+        raise ParserError(msg, self.string_pos)
 
     def parse(self) -> AstNode:
         root = self.p1()
         if self.peek() is not None:
-            self.error()
+            self.error("unread input remaining (expected end of input)")
         return root
 
     @rule

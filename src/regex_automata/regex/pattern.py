@@ -1,4 +1,5 @@
 from .match import Match
+from ..errors import ParserError, PatternError, TokenizerError
 from ..parser.tokenizer import Tokenizer
 from ..parser.parser import Parser
 from .nfa_builder import NFABuilder
@@ -7,10 +8,30 @@ from ..automata.nfa_visualizer import NFAVisualizer
 
 class Pattern:
     def __init__(self, pattern: str) -> None:
-        tokenizer = Tokenizer(pattern)
-        tokens = list(tokenizer.get_tokens())
-        parser = Parser(tokens)
-        self.ast = parser.parse()
+        try:
+            tokenizer = Tokenizer(pattern)
+            tokens = list(tokenizer.get_tokens())
+        except TokenizerError as e:
+            msg = "\n".join([
+                str(e),
+                "",
+                pattern,
+                format("^", f">{e.string_pos+1}")
+            ])
+            raise PatternError(msg) from e
+
+        try:
+            parser = Parser(tokens)
+            self.ast = parser.parse()
+        except ParserError as e:
+            msg = "\n".join([
+                str(e),
+                "",
+                pattern,
+                format("^", f">{e.string_pos+1}")
+            ])
+            raise PatternError(msg) from e
+
         self.nfa = NFABuilder(self.ast).build()
         self.pattern = pattern
 

@@ -1,6 +1,7 @@
 from typing import Iterator
 
 from .tokens import Token, LPar, RPar, Star, Pipe, Character
+from ..errors import TokenizerError
 
 
 class Tokenizer:
@@ -22,13 +23,13 @@ class Tokenizer:
                 case "|":
                     yield Pipe(span)
                 case "." | "^" | "$" | "+" | "?" | "{" | "[":
-                    raise NotImplementedError(f"Special character {c!r} is not implemented")  # TODO
+                    raise TokenizerError(f"special character {c!r} is not implemented", i)  # TODO
                 case "\\":
                     span = (i, i + 2)
                     try:
                         yield Character(span, self.s[i+1])
                     except IndexError:
-                        raise ValueError("Unfinished escape sequence")
+                        raise TokenizerError("unfinished escape sequence", i)
                 case _:
                     yield Character(span, c)
             i = span[1]
