@@ -1,5 +1,6 @@
 from .match import Match
 from ..errors import ParserError, PatternError, TokenizerError
+from ..parser.ast_visualizer import ASTVisualizer
 from ..parser.tokenizer import Tokenizer
 from ..parser.parser import Parser
 from .nfa_builder import NFABuilder
@@ -35,8 +36,11 @@ class Pattern:
         self.nfa = NFABuilder(self.ast).build()
         self.pattern = pattern
 
-    def save_png(self, output_path: str) -> None:
-        NFAVisualizer(self.nfa).to_png(output_path)
+    def render_nfa(self, output_path: str = "nfa.png") -> None:
+        NFAVisualizer(self.nfa).render(output_path)
+
+    def render_ast(self, output_path: str = "ast.png") -> None:
+        ASTVisualizer(self.ast).render(output_path)
 
     def fullmatch(self, s: str) -> Match | None:
         if self.nfa.accepts(s):

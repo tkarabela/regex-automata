@@ -21,6 +21,6 @@ class NFAVisualizer:
                     g.edge(str(u), str(v), label=c)
         return g
 
-    def to_png(self, output: str = "nfa.png") -> None:
+    def render(self, output_path: str = "nfa.png") -> None:
         dot = self.get_digraph_dot()
-        dot.render(output, format="png")
+        dot.render(outfile=output_path)
