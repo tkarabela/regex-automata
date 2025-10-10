@@ -1,5 +1,6 @@
 from ..parser.ast import AstNode, AstCharacter, AstConcatenation, AstUnion, AstIteration
-from ..automata.nfa import NFA
+from ..automata.rangeset import RangeSet
+from ..automata.nfa import NFA, LabeledRangeSet
 
 
 class NFABuilder:
@@ -15,12 +16,17 @@ class NFABuilder:
 
     def convert(self, node: AstNode) -> NFA:
         match node:
-            case AstCharacter(c):
-                return NFA([0, 1], 0, [1], {0: {c: {1}}})
+            case AstCharacter(lrs):
+                return NFA(
+                    states=[0, 1],
+                    initial_state=0,
+                    final_states=[1],
+                    transitions={0: {lrs: {1}}}
+                )
             case AstIteration(u):
                 nfa = self.convert(u)
                 for x in nfa.final_states:
-                    nfa.transitions.setdefault(x, {}).setdefault("", set()).add(nfa.initial_state)
+                    nfa.transitions.setdefault(x, {}).setdefault(LabeledRangeSet(), set()).add(nfa.initial_state)
                 nfa.final_states = list(sorted(nfa.epsilon_closure(set(nfa.final_states))))
                 return nfa
             case AstUnion(u, v):
@@ -32,7 +38,7 @@ class NFABuilder:
                 nfa.transitions.update(nfa_v.transitions)
                 new_initial_state = max(nfa.states) + 1
                 nfa.states.append(new_initial_state)
-                nfa.transitions[new_initial_state] = {"": {nfa_u.initial_state, nfa_v.initial_state}}
+                nfa.transitions[new_initial_state] = {LabeledRangeSet(): {nfa_u.initial_state, nfa_v.initial_state}}
                 nfa.initial_state = new_initial_state
                 return nfa
             case AstConcatenation(u, v):
@@ -43,7 +49,7 @@ class NFABuilder:
                 nfa.final_states = nfa_v.final_states
                 nfa.transitions.update(nfa_v.transitions)
                 for s in nfa_u.final_states:
-                    nfa.transitions.setdefault(s, {}).setdefault("", set()).add(nfa_v.initial_state)
+                    nfa.transitions.setdefault(s, {}).setdefault(LabeledRangeSet(), set()).add(nfa_v.initial_state)
                 return nfa
             case _:
                 raise NotImplementedError(f"Cannot convert node {node!r}")

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Iterator
 
+from regex_automata.automata.nfa import LabeledRangeSet
+
 
 @dataclass
 class AstNode:
@@ -18,10 +20,10 @@ class AstNode:
 
 @dataclass
 class AstCharacter(AstNode):
-    c: str
+    lrs: LabeledRangeSet
 
     def get_label(self) -> str:
-        return self.c
+        return self.lrs.label
 
 
 @dataclass

@@ -1,5 +1,7 @@
 import pytest
 
+from regex_automata.automata.nfa import LabeledRangeSet
+from regex_automata.automata.rangeset import RangeSet
 from regex_automata.parser.ast import AstUnion, AstCharacter, AstConcatenation
 from regex_automata.parser.parser import Parser
 from regex_automata.parser.tokenizer import Tokenizer
@@ -12,23 +14,27 @@ def test_parse_regex(pattern: str):
     Parser(tokens).parse()
 
 
+def _lrs(s: str) -> LabeledRangeSet:
+    return LabeledRangeSet(RangeSet(map(ord, s)), s)
+
+
 def test_parse_tree_union():
     tokens = list(Tokenizer("ab|cd").get_tokens())
     assert Parser(tokens).parse() == AstUnion(
-        AstConcatenation(AstCharacter("a"), AstCharacter("b")),
-        AstConcatenation(AstCharacter("c"), AstCharacter("d")),
+        AstConcatenation(AstCharacter(_lrs("a")), AstCharacter(_lrs("b"))),
+        AstConcatenation(AstCharacter(_lrs("c")), AstCharacter(_lrs("d"))),
     )
 
 def test_parse_tree_union_parens():
     tokens = list(Tokenizer("ab|(cd|ef)|gh").get_tokens())
     assert Parser(tokens).parse() == AstUnion(
-        AstConcatenation(AstCharacter("a"), AstCharacter("b")),
+        AstConcatenation(AstCharacter(_lrs("a")), AstCharacter(_lrs("b"))),
         AstUnion(
             AstUnion(
-                AstConcatenation(AstCharacter("c"), AstCharacter("d")),
-                AstConcatenation(AstCharacter("e"), AstCharacter("f")),
+                AstConcatenation(AstCharacter(_lrs("c")), AstCharacter(_lrs("d"))),
+                AstConcatenation(AstCharacter(_lrs("e")), AstCharacter(_lrs("f"))),
             ),
-            AstConcatenation(AstCharacter("g"), AstCharacter("h")),
+            AstConcatenation(AstCharacter(_lrs("g")), AstCharacter(_lrs("h"))),
         )
     )
 

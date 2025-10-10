@@ -1,4 +1,6 @@
+from .flags import PatternFlag
 from .match import Match
+from regex_automata.automata.nfa_evaluator import NFAEvaluator
 from ..errors import ParserError, PatternError, TokenizerError
 from ..parser.ast_visualizer import ASTVisualizer
 from ..parser.tokenizer import Tokenizer
@@ -8,9 +10,9 @@ from ..automata.nfa_visualizer import NFAVisualizer
 
 
 class Pattern:
-    def __init__(self, pattern: str) -> None:
+    def __init__(self, pattern: str, flags: PatternFlag = PatternFlag.NOFLAG, epsilon_free: bool = True) -> None:
         try:
-            tokenizer = Tokenizer(pattern)
+            tokenizer = Tokenizer(pattern, flags)
             tokens = list(tokenizer.get_tokens())
         except TokenizerError as e:
             msg = "\n".join([
@@ -33,8 +35,9 @@ class Pattern:
             ])
             raise PatternError(msg) from e
 
-        self.nfa = NFABuilder(self.ast).build(epsilon_free=True)
+        self.nfa = NFABuilder(self.ast).build(epsilon_free=epsilon_free)
         self.pattern = pattern
+        self.flags = flags
 
     def render_nfa(self, output_path: str = "nfa.png") -> None:
         NFAVisualizer(self.nfa).render(output_path)
@@ -43,7 +46,8 @@ class Pattern:
         ASTVisualizer(self.ast).render(output_path)
 
     def fullmatch(self, s: str) -> Match | None:
-        if self.nfa.accepts(s):
+        evaluator = NFAEvaluator(self.nfa, self.flags)
+        if evaluator.accepts(s):
             return Match()
         else:
             return None

@@ -1,8 +1,9 @@
 import functools
 from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
-from .tokens import Token, LPar, RPar, Star, Pipe, Character
+from .tokens import Token, LPar, RPar, Star, Pipe, CharacterSet
 from .ast import AstNode, AstUnion, AstIteration, AstCharacter, AstConcatenation
+from ..automata.nfa import LabeledRangeSet
 from ..errors import ParserError
 
 
@@ -61,7 +62,7 @@ class Parser:
         """
         # F
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 F = self.p4()
             case _:
                 self.error()
@@ -91,7 +92,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 E = self.p1()
             case _:
                 self.error()
@@ -112,7 +113,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 G = self.p7()
             case _:
                 self.error()
@@ -120,7 +121,7 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 Fprime = self.p5()
             case Pipe() | RPar() | None:
                 Fprime = self.p6()
@@ -139,7 +140,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 G = self.p7()
             case _:
                 self.error()
@@ -147,7 +148,7 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 Fprime = self.p5()
             case Pipe() | RPar() | None:
                 Fprime = self.p6()
@@ -175,7 +176,7 @@ class Parser:
         match self.peek():
             case LPar():
                 H = self.p10()
-            case Character():
+            case CharacterSet():
                 H = self.p11()
             case _:
                 self.error()
@@ -184,7 +185,7 @@ class Parser:
         match self.peek():
             case Star():
                 Gprime = self.p8(H)
-            case LPar() | Character() | Pipe() | RPar() | None:
+            case LPar() | CharacterSet() | Pipe() | RPar() | None:
                 Gprime = self.p9(H)
             case _:
                 self.error()
@@ -216,7 +217,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar() | Character():
+            case LPar() | CharacterSet():
                 E = self.p1()
             case _:
                 self.error()
@@ -231,5 +232,8 @@ class Parser:
         """
         H  -> a
         """
-        a = self.read(Character)
-        return AstCharacter(a.c)
+        a = self.read(CharacterSet)
+        return AstCharacter(LabeledRangeSet(
+            set=a.set,
+            label=a.text
+        ))

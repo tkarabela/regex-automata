@@ -15,10 +15,10 @@ class NFAVisualizer:
             g.node(str(u), shape="doublecircle" if u in self.nfa.final_states else "circle")
         g.edge("", str(self.nfa.initial_state))
         for u, d in self.nfa.transitions.items():
-            for c, vs in d.items():
-                c = c or "ε"
+            for lrs, vs in d.items():
+                label = lrs.label or "ε"
                 for v in vs:
-                    g.edge(str(u), str(v), label=c)
+                    g.edge(str(u), str(v), label=label)
         return g
 
     def render(self, output_path: str = "nfa.png") -> None:

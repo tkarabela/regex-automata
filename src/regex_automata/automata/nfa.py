@@ -1,17 +1,41 @@
 from dataclasses import dataclass
 from typing import Self, Any
 import json
-from abc import ABC, abstractmethod
 from itertools import count
 
+from .rangeset import RangeSet
 from ..common import PathOrStr
 
 
-class FiniteAutomaton(ABC):
-    """Base class for finite automata"""
-    @abstractmethod
-    def accepts(self, s: str) -> bool:
-        raise NotImplementedError
+@dataclass(frozen=True)
+class LabeledRangeSet:
+    set: RangeSet = RangeSet()
+    label: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "set": self.set.to_dict(),
+            "label": self.label,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> Self:
+        return cls(
+            set=RangeSet.from_dict(d.get("set", {})),
+            label=d.get("label", ""),
+        )
+
+
+@dataclass
+class NFA:
+    """
+    Non-deterministic finite automaton (possibly with epsilon transitions)
+
+    """
+    states: list[int]
+    initial_state: int
+    final_states: list[int]
+    transitions: dict[int, dict[LabeledRangeSet, set[int]]]
 
     @classmethod
     def from_file(cls, path: PathOrStr) -> Self:
@@ -19,56 +43,17 @@ class FiniteAutomaton(ABC):
             data = json.load(fp)
             return cls.from_dict(data)
 
-    @classmethod
-    @abstractmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
-        raise NotImplementedError
-
     def to_file(self, path: PathOrStr) -> None:
         data = self.to_dict()
         with open(path, "w") as fp:
             json.dump(data, fp, indent=4)
 
-    @abstractmethod
-    def to_dict(self) -> dict[str, Any]:
-        raise NotImplementedError
-
-
-@dataclass
-class NFA(FiniteAutomaton):
-    """
-    Non-deterministic finite automaton
-
-    Bonus I: support epsilon transitions (transition that "reads empty string") - DONE
-    """
-    states: list[int]
-    initial_state: int
-    final_states: list[int]
-    transitions: dict[int, dict[str, set[int]]]
-
-    class Evaluator:
-        def __init__(self, nfa: "NFA") -> None:
-            self.nfa = nfa
-            self.states: set[int] = self.nfa.epsilon_closure({nfa.initial_state})
-
-        def step(self, c: str) -> None:
-            new_states = set()
-            for u in self.states:
-                new_states.update(self.nfa.transitions.get(u, {}).get(c, set()))
-
-            self.states = self.nfa.epsilon_closure(new_states)
-
-    def accepts(self, s: str) -> bool:
-        evaluator = self.Evaluator(self)
-        for c in s:
-            evaluator.step(c)
-        return len(evaluator.states.intersection(self.final_states)) > 0
-
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
-        transitions: dict[int, dict[str, set[int]]] = {}
-        for u, c, v in data["transitions"]:
-            transitions.setdefault(u, {}).setdefault(c, set()).add(v)
+        transitions: dict[int, dict[LabeledRangeSet, set[int]]] = {}
+        for u, lrs_, v in data["transitions"]:
+            lrs = LabeledRangeSet.from_dict(lrs_)
+            transitions.setdefault(u, {}).setdefault(lrs, set()).add(v)
 
         return cls(
             states=data["states"],
@@ -80,9 +65,9 @@ class NFA(FiniteAutomaton):
     def to_dict(self) -> dict[str, Any]:
         transitions = []
         for u, tmp in self.transitions.items():
-            for c, vs in tmp.items():
+            for lrs, vs in tmp.items():
                 for v in vs:
-                    transitions.append([u, c, v])
+                    transitions.append([u, lrs.to_dict(), v])
 
         return {
             "states": self.states,
@@ -101,7 +86,7 @@ class NFA(FiniteAutomaton):
             initial_state=f[self.initial_state],
             final_states=[f[x] for x in self.final_states],
             transitions={
-                f[x]: {c: {f[y] for y in ys} for c, ys in d.items()}
+                f[x]: {lrs: {f[y] for y in ys} for lrs, ys in d.items()}
                 for x, d in self.transitions.items()
             },
         )
@@ -111,7 +96,7 @@ class NFA(FiniteAutomaton):
         while True:
             new_closure = closure
             for u in closure:
-                new_closure = new_closure | self.transitions.get(u, {}).get("", set())
+                new_closure = new_closure | self.transitions.get(u, {}).get(LabeledRangeSet(), set())
             if len(closure) == len(new_closure):
                 break
             closure = new_closure
@@ -121,15 +106,15 @@ class NFA(FiniteAutomaton):
         states = set(self.states)
         initial_state = self.initial_state
         final_states = set(self.final_states)
-        transitions: dict[int, dict[str, set[int]]] = {}
+        transitions: dict[int, dict[LabeledRangeSet, set[int]]] = {}
 
         for u in self.states:
             closure = self.epsilon_closure({u})
             for v in closure:
                 transitions_u = transitions.setdefault(u, {})
-                for c, ws in self.transitions.get(v, {}).items():
-                    if c != "":
-                        transitions_u.setdefault(c, set()).update(ws)
+                for lrs, ws in self.transitions.get(v, {}).items():
+                    if not lrs.set.empty:
+                        transitions_u.setdefault(lrs, set()).update(ws)
 
                 if v in self.final_states:
                     final_states.add(u)
