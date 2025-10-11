@@ -1,3 +1,4 @@
+# ruff: noqa: E741
 from enum import IntFlag
 
 

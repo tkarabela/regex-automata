@@ -1,5 +1,4 @@
 from ..parser.ast import AstNode, AstCharacter, AstConcatenation, AstUnion, AstIteration
-from ..automata.rangeset import RangeSet
 from ..automata.nfa import NFA, LabeledRangeSet
 
 

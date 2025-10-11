@@ -1,3 +1,4 @@
+# ruff: noqa: E741
 from .regex.flags import PatternFlag
 from .regex.match import Match
 from .regex.pattern import Pattern
