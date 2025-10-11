@@ -3,7 +3,7 @@ from .regex.flags import PatternFlag
 from .regex.match import Match
 from .regex.pattern import Pattern
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 
 def fullmatch(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> Match | None:
