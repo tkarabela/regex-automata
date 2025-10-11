@@ -3,13 +3,14 @@ from pathlib import PurePath
 import pytest
 
 from regex_automata.automata.nfa import NFA
-from regex_automata.automata.nfa_evaluator import NFAEvaluator
+from regex_automata.regex.nfa_evaluator import NFAEvaluator
 
 DATA_DIR = PurePath(__file__).parent / "data"
 
 def _accepts(nfa: NFA, s: str) -> bool:
     evaluator = NFAEvaluator(nfa)
-    return evaluator.accepts(s)
+    m = evaluator.match(s)
+    return m is not None and m.match == s
 
 
 def _test_lol_strings(nfa: NFA):

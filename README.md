@@ -13,8 +13,8 @@ import regex_automata
 
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
-pattern.fullmatch("foofoobar")  # regex_automata.Match(...)
-pattern.fullmatch("foo")  # None
+pattern.fullmatch("foofoobar")  # regex_automata.Match(span=(0, 9), match='foofoobar')
+pattern.fullmatch("foo")        # None
 
 pattern.ast  # regex_automata.parser.ast.AstNode
 pattern.nfa  # regex_automata.automata.nfa.NFA
@@ -35,13 +35,27 @@ Finite automaton accepting `(foo)*bar|baz`:
 ## Features compared to standard `re` module
 
 - Library
-  - `fullmatch()` method (but the `Match` object is currently just empty)
+  - `match()`, `fullmatch()` and `search()` methods (search is currently implemented naively via match)
+  - `Match` object containing span and matched text (but no groups)
   - flags `DOTALL` and `IGNORECASE`
 
 - Syntax
   - character sets: `.`, `[...]` (special sequences such as `\w` are not supported)
   - repetition: `*`, `?`, `+`, `{n,k}`
   - basic groups: `(...)` that behave like `(?:...)` ie. non-capturing
+
+## Implementation overview
+
+- Input pattern is tokenized via `regex_automata.parser.tokenizer.Tokenizer`
+  - Characters and sets are represented with `regex_automata.automata.rangeset.RangeSet`
+- List of tokens is processed by recursive descent parser `regex_automata.parser.parser.Parser`
+- Parser produces "raw" abstract syntax tree composed of `regex_automata.parser.ast.AstNode` nodes
+- AST is processed with `regex_automata.parser.ast_processor.ASTProcessor` to produce the final tree
+  - This is used to replace fancy repetition with primitives (union, concatenation, iteration)
+- Epsilon-free NFA is recursively constructed from the AST using `regex_automata.regex.nfa_builder.NFABuilder`
+- The processed pattern is stored in `regex_automata.regex.pattern.Pattern`, which is the high-level interface
+- When processing input text, the text and NFA are passed to `regex_automata.regex.nfa_evaluator.NFAEvaluator`
+- The evaluator produces `regex_automata.regex.match.Match` objects
 
 ## Grammar
 

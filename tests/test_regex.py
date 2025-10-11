@@ -82,3 +82,25 @@ def test_digits():
 
     assert not p.fullmatch("60")
     assert not p.fullmatch("01")
+
+
+def test_match():
+    p1 = regex_automata.compile(r"a{3}")
+    m = p1.match("aaa")
+    assert m is not None and m.span == (0, 3)
+    m = p1.match("baaa")
+    assert m is None
+    m = p1.match("baaa", start=1)
+    assert m is not None and m.span == (1, 4)
+
+    p2 = regex_automata.compile(r"a+")
+    m = p2.match("aaaaaaaaaaaaaaaaaa", start=5, end=7)
+    assert m is not None and m.span == (5, 7)
+
+
+def test_search():
+    p1 = regex_automata.compile(r"[a-z0-9]+@[a-z0-9]+\.[a-z0-9]+")
+    m = p1.search("text abc@def.com xyz@123.com")
+    assert m is not None and m.match == "abc@def.com"
+    m = p1.search("text abc@def.com xyz@123.com", start=10)
+    assert m is not None and m.match == "xyz@123.com"

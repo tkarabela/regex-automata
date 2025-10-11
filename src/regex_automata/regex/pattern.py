@@ -1,6 +1,6 @@
 from .flags import PatternFlag
 from .match import Match
-from regex_automata.automata.nfa_evaluator import NFAEvaluator
+from regex_automata.regex.nfa_evaluator import NFAEvaluator
 from ..errors import ParserError, PatternError, TokenizerError
 from ..parser.ast_processor import ASTProcessor
 from ..parser.ast_visualizer import ASTVisualizer
@@ -52,15 +52,22 @@ class Pattern:
         ast = self.ast if not raw else self.raw_ast
         ASTVisualizer(ast).render(output_path)
 
-    def fullmatch(self, s: str) -> Match | None:
+    def fullmatch(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
+        end_ = end if end is not None else len(text)
+        m = self.match(text, start, end)
+        if m is not None and m.span[-1] != end_:
+            m = None
+        return m
+
+    def match(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
         evaluator = NFAEvaluator(self.nfa, self.flags)
-        if evaluator.accepts(s):
-            return Match()
-        else:
-            return None
+        return evaluator.match(text, start, end)
 
-    def match(self, s: str) -> Match | None:
-        raise NotImplementedError  # TODO
-
-    def search(self, s: str) -> Match | None:
-        raise NotImplementedError  # TODO
+    def search(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
+        # TODO implement this properly via automaton
+        end_ = end if end is not None else len(text)
+        for i in range(start, end_):
+            m = self.match(text, i, end)
+            if m is not None:
+                return m
+        return None
