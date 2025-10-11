@@ -1,8 +1,8 @@
 import functools
 from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
-from .tokens import Token, LPar, RPar, Star, Pipe, CharacterSet
-from .ast import AstNode, AstUnion, AstIteration, AstCharacter, AstConcatenation, AstEmpty
+from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet
+from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty
 from ..automata.nfa import LabeledRangeSet
 from ..errors import ParserError
 
@@ -185,7 +185,7 @@ class Parser:
 
         # G'
         match self.peek():
-            case Star():
+            case Repetition():
                 Gprime = self.p8(H)
             case LPar() | CharacterSet() | Pipe() | RPar() | None:
                 Gprime = self.p9(H)
@@ -199,8 +199,8 @@ class Parser:
         """
         G' -> star
         """
-        _ = self.read(Star)
-        return AstIteration(Gprime)
+        repetition = self.read(Repetition)
+        return AstRepetition(Gprime, repetition.min, repetition.max)
 
     @rule
     def p9(self, Gprime: AstNode) -> AstNode:
@@ -237,7 +237,7 @@ class Parser:
         H  -> a
         """
         a = self.read(CharacterSet)
-        return AstCharacter(LabeledRangeSet(
+        return AstCharacterSet(LabeledRangeSet(
             set=a.set,
             label=a.text
         ))

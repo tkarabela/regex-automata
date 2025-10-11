@@ -40,7 +40,7 @@ Finite automaton accepting `(foo)*bar|baz`:
 
 - Syntax
   - character sets: `.`, `[...]` (special sequences such as `\w` are not supported)
-  - repetition: `*` (no `?`, `+`, `{n,k}` currently)
+  - repetition: `*`, `?`, `+`, `{n,k}`
   - basic groups: `(...)` that behave like `(?:...)` ie. non-capturing
 
 ## Grammar

@@ -1,6 +1,6 @@
 from typing import Iterator, NoReturn
 
-from .tokens import Token, LPar, RPar, Star, Pipe, CharacterSet
+from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet
 from ..automata.rangeset import RangeSet
 from ..errors import TokenizerError
 from ..regex.flags import PatternFlag
@@ -19,6 +19,19 @@ class Tokenizer:
                 self.tokenizer.error(f"expected to read {expect!r}, got {c!r}")
             self.end = self.tokenizer.pos + 1
             return c
+
+        def read_number(self) -> int:
+            digits = []
+            while c := self.tokenizer.peek():
+                if c.isdigit():
+                    digits.append(self.read())
+                else:
+                    break
+
+            try:
+                return int("".join(digits))
+            except Exception as e:
+                self.tokenizer.error(f"failed to read number ({e})")
 
         @property
         def span(self) -> tuple[int, int]:
@@ -65,13 +78,13 @@ class Tokenizer:
                     yield self.read_LPar(reader)
                 case ")":
                     yield self.read_RPar(reader)
-                case "*":
-                    yield self.read_Star(reader)
+                case "*" | "?" | "+" | "{":
+                    yield self.read_Repetition(reader)
                 case "|":
                     yield self.read_Pipe(reader)
                 case ".":
                     yield self.read_CharacterSet(reader)
-                case "^" | "$" | "+" | "?" | "{":
+                case "^" | "$":
                     self.error(f"special character {c!r} is not implemented")  # TODO
                 case "\\":
                     match self.peek(k=2):
@@ -82,23 +95,67 @@ class Tokenizer:
                 case "." | "[" | _:
                     yield self.read_CharacterSet(reader)
 
-    def read_LPar(self, reader: Reader) -> Token:
+    def read_LPar(self, reader: Reader) -> LPar:
         reader.read("(")
         return LPar(reader.span, reader.text)
 
-    def read_RPar(self, reader: Reader) -> Token:
+    def read_RPar(self, reader: Reader) -> RPar:
         reader.read(")")
         return RPar(reader.span, reader.text)
 
-    def read_Star(self, reader: Reader) -> Token:
-        reader.read("*")
-        return Star(reader.span, reader.text)
+    def read_Repetition(self, reader: Reader) -> Repetition:
+        match reader.read():
+            case "*":
+                return Repetition(reader.span, reader.text, 0, None)
+            case "?":
+                return Repetition(reader.span, reader.text, 0, 1)
+            case "+":
+                return Repetition(reader.span, reader.text, 1, None)
+            case "{":
+                read_lower_limit = False
+                c = self.peek()
+                if c is None:
+                    self.error("bad repetition definition")
+                elif c == ",":
+                    rmin = 0
+                elif c.isdigit():
+                    rmin = reader.read_number()
+                    read_lower_limit = True
+                else:
+                    self.error("bad repetition definition")
 
-    def read_Pipe(self, reader: Reader) -> Token:
+                c = self.peek()
+                if c is None:
+                    self.error("bad repetition definition")
+                elif c == ",":
+                    reader.read(",")
+
+                    c = self.peek()
+                    if c == "}":
+                        rmax = None
+                    elif c is not None and c.isdigit():
+                        rmax = reader.read_number()
+                    else:
+                        self.error("bad repetition definition")
+                elif c == "}":
+                    if not read_lower_limit:
+                        self.error("bad repetition definition (braced definition missing both limits)")
+                    rmax = rmin
+                else:
+                    self.error("bad repetition definition")
+
+                reader.read("}")
+
+                return Repetition(reader.span, reader.text, rmin, rmax)
+
+            case _:
+                self.error("bad repetition definition")
+
+    def read_Pipe(self, reader: Reader) -> Pipe:
         reader.read("|")
         return Pipe(reader.span, reader.text)
 
-    def read_CharacterSet(self, reader: Reader) -> Token:
+    def read_CharacterSet(self, reader: Reader) -> CharacterSet:
         match c := self.peek():
             case "\\":
                 reader.read("\\")
@@ -120,7 +177,7 @@ class Tokenizer:
                 c = reader.read()
                 return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
 
-    def _read_CharacterSet_brackets(self, reader: Reader) -> Token:
+    def _read_CharacterSet_brackets(self, reader: Reader) -> CharacterSet:
         rs = RangeSet()
         complement = False
         reader.read("[")

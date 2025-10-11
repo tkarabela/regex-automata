@@ -15,8 +15,9 @@ class CharacterSet(Token):
 
 
 @dataclass
-class Star(Token):
-    pass
+class Repetition(Token):
+    min: int
+    max: int | None
 
 
 @dataclass
