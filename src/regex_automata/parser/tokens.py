@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Self
 
 from regex_automata.automata.rangeset import RangeSet
 
@@ -8,10 +7,6 @@ from regex_automata.automata.rangeset import RangeSet
 class Token:
     span: tuple[int, int]
     text: str
-
-    @classmethod
-    def from_span(cls: Self, s: str, span: tuple[int, int], **kwargs) -> Self:
-        return cls(span, s[span[0]:span[1]], **kwargs)
 
 
 @dataclass

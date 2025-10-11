@@ -16,7 +16,7 @@ class NFAVisualizer:
         g.edge("", str(self.nfa.initial_state))
         for u, d in self.nfa.transitions.items():
             for lrs, vs in d.items():
-                label = lrs.label or "ε"
+                label = lrs.label.replace("\\", "\\\\") or "ε"
                 for v in vs:
                     g.edge(str(u), str(v), label=label)
         return g
