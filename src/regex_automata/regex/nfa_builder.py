@@ -1,4 +1,4 @@
-from ..parser.ast import AstNode, AstCharacter, AstConcatenation, AstUnion, AstIteration
+from ..parser.ast import AstNode, AstCharacter, AstConcatenation, AstUnion, AstIteration, AstEmpty
 from ..automata.nfa import NFA, LabeledRangeSet
 
 
@@ -15,6 +15,13 @@ class NFABuilder:
 
     def convert(self, node: AstNode) -> NFA:
         match node:
+            case AstEmpty():
+                return NFA(
+                    states=[0],
+                    initial_state=0,
+                    final_states=[0],
+                    transitions={}
+                )
             case AstCharacter(lrs):
                 return NFA(
                     states=[0, 1],

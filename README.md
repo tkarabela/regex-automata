@@ -59,6 +59,7 @@ The recursive descent parser uses the following LL(1) grammar:
  9.  G' → ε
 10.  H  → ( E )
 11.  H  → a
+12.  E  → ε
 ```
 
 Which is derived from the following CFG:
@@ -66,6 +67,7 @@ Which is derived from the following CFG:
 ```
 E → F | E
 E → F
+E → ε
 F → G F
 F → G
 G → H *
@@ -82,6 +84,7 @@ E → E E
 E → E *
 E → ( E )
 E → a
+E → ε
 ```
 
 ## License

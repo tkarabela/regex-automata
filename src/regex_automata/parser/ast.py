@@ -59,3 +59,9 @@ class AstUnion(AstNode):
 
     def iter_children(self) -> Iterator["AstNode"]:
         yield from (self.u, self.v)
+
+
+@dataclass
+class AstEmpty(AstNode):
+    def get_label(self) -> str:
+        return "<empty>"

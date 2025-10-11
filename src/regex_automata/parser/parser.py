@@ -2,7 +2,7 @@ import functools
 from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
 from .tokens import Token, LPar, RPar, Star, Pipe, CharacterSet
-from .ast import AstNode, AstUnion, AstIteration, AstCharacter, AstConcatenation
+from .ast import AstNode, AstUnion, AstIteration, AstCharacter, AstConcatenation, AstEmpty
 from ..automata.nfa import LabeledRangeSet
 from ..errors import ParserError
 
@@ -64,6 +64,8 @@ class Parser:
         match self.peek():
             case LPar() | CharacterSet():
                 F = self.p4()
+            case RPar() | None:
+                F = self.p12()
             case _:
                 self.error()
 
@@ -219,6 +221,8 @@ class Parser:
         match self.peek():
             case LPar() | CharacterSet():
                 E = self.p1()
+            case RPar():
+                E = self.p12()
             case _:
                 self.error()
 
@@ -237,3 +241,10 @@ class Parser:
             set=a.set,
             label=a.text
         ))
+
+    @rule
+    def p12(self) -> AstNode:
+        """
+        E  -> ε
+        """
+        return AstEmpty()

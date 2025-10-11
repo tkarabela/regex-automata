@@ -16,6 +16,9 @@ import regex_automata
                           ("(ab*)*", "", True),
                           ("(ab*)*", "bbbbb", False),
                           ("ab\\[c", "ab[c", True),
+                          ("", "", True),
+                          ("()", "", True),
+                          ("((((()))))", "", True),
                           ])
 def test_fullmatch_regex(pattern: str, s: str, result: bool):
     assert (regex_automata.fullmatch(pattern, s) is not None) is result
