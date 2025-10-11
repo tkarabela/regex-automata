@@ -14,7 +14,7 @@ class Pattern:
     def __init__(self, pattern: str, flags: PatternFlag = PatternFlag.NOFLAG, epsilon_free: bool = True) -> None:
         try:
             tokenizer = Tokenizer(pattern, flags)
-            tokens = list(tokenizer.get_tokens())
+            self.tokens = list(tokenizer.get_tokens())
         except TokenizerError as e:
             msg = "\n".join([
                 str(e),
@@ -25,7 +25,7 @@ class Pattern:
             raise PatternError(msg) from e
 
         try:
-            parser = Parser(tokens)
+            parser = Parser(self.tokens)
             self.raw_ast = parser.parse()
         except ParserError as e:
             msg = "\n".join([

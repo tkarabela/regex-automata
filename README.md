@@ -13,14 +13,22 @@ import regex_automata
 
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
-pattern.fullmatch("foofoobar")  # regex_automata.Match(span=(0, 9), match='foofoobar')
-pattern.fullmatch("foo")        # None
+pattern.fullmatch("foofoobar")                      # regex_automata.Match(span=(0, 9), match='foofoobar')
+pattern.fullmatch("foo")                            # None
 
-pattern.ast  # regex_automata.parser.ast.AstNode
-pattern.nfa  # regex_automata.automata.nfa.NFA
+pattern.ast                                         # regex_automata.parser.ast.AstNode
+pattern.ast_raw                                     # regex_automata.parser.ast.AstNode
+pattern.nfa                                         # regex_automata.automata.nfa.NFA
 
 pattern.render_ast("regex_ast.svg")
+pattern.render_ast("regex_ast_raw.svg", raw=True)
 pattern.render_nfa("regex_nfa.svg")
+
+pattern2 = regex_automata.compile(r"[a-z_-][a-z0-9_-]*", regex_automata.IGNORECASE)
+pattern2.tokens
+# [CharacterSet(span=(0, 7), text='[a-z_-]', set=RangeSet(((45, 46), (95, 96), (97, 123)))),
+#  CharacterSet(span=(7, 17), text='[a-z0-9_-]', set=RangeSet(((45, 46), (48, 58), (95, 96), (97, 123)))),
+#  Repetition(span=(17, 18), text='*', min=0, max=None)]
 ```
 
 Abstract syntax tree of `(foo)*bar|baz`:

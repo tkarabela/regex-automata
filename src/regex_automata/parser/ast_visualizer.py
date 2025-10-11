@@ -12,7 +12,7 @@ class ASTVisualizer:
         g.attr(rankdir='TB')
 
         for u in self.ast.iter_descendants():
-            g.node(self.node_id(u), label=u.get_label(), shape="circle")
+            g.node(self.node_id(u), label=u.get_label())
             for v in u.iter_children():
                 g.edge(self.node_id(u), self.node_id(v))
 
