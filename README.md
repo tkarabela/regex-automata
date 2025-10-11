@@ -31,6 +31,18 @@ Finite automaton accepting `(foo)*bar|baz`:
 
 ![automaton for (foo)*bar|baz](./static/example_nfa.svg)
 
+
+## Features compared to standard `re` module
+
+- Library
+  - `fullmatch()` method (but the `Match` object is currently just empty)
+  - flags `DOTALL` and `IGNORECASE`
+
+- Syntax
+  - character sets: `.`, `[...]` (special sequences such as `\w` are not supported)
+  - repetition: `*` (no `?`, `+`, `{n,k}` currently)
+  - basic groups: `(...)` that behave like `(?:...)` ie. non-capturing
+
 ## Grammar
 
 The recursive descent parser uses the following LL(1) grammar:

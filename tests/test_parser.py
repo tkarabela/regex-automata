@@ -2,6 +2,7 @@ import pytest
 
 from regex_automata.automata.nfa import LabeledRangeSet
 from regex_automata.automata.rangeset import RangeSet
+from regex_automata.errors import TokenizerError
 from regex_automata.parser.ast import AstUnion, AstCharacter, AstConcatenation
 from regex_automata.parser.parser import Parser
 from regex_automata.parser.tokenizer import Tokenizer
@@ -38,8 +39,13 @@ def test_parse_tree_union_parens():
         )
     )
 
-@pytest.mark.parametrize("pattern", ["a?", "a+", "[0-9]", "a{1,3}", "a{1,}", "a{,3}",
-                                     "^foo", "bar$", ".*", "\\"])
-def test_tokenizer_errors_in_pattern(pattern):
-    with pytest.raises(Exception):
+@pytest.mark.parametrize("pattern", ["a?", "a+", "a{1,3}", "a{1,}", "a{,3}", "^foo", "bar$"])
+def test_tokenizer_errors_in_pattern_unsupported(pattern):
+    with pytest.raises(TokenizerError):
+        list(Tokenizer(pattern).get_tokens())
+
+
+@pytest.mark.parametrize("pattern", ["\\", "[a", "[a-bc-", "[]"])
+def test_tokenizer_errors_in_pattern_malformed(pattern):
+    with pytest.raises(TokenizerError):
         list(Tokenizer(pattern).get_tokens())

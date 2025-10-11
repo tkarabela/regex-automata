@@ -33,12 +33,18 @@ class Tokenizer:
         self.flags = flags
         self.pos = -1
 
+    def normalize_case(self, s: str) -> str:
+        if self.flags.IGNORECASE:
+            return s.lower()
+        else:
+            return s
+
     def read(self) -> str:
         self.pos += 1
         try:
             return self.text[self.pos]
         except IndexError:
-            self.error(f"unexpected end of input")
+            self.error("unexpected end of input")
 
     def peek(self, k: int = 1) -> str | None:
         i = self.pos + k
@@ -65,7 +71,7 @@ class Tokenizer:
                     yield self.read_Pipe(reader)
                 case ".":
                     yield self.read_CharacterSet(reader)
-                case "^" | "$" | "+" | "?" | "{" | "[":
+                case "^" | "$" | "+" | "?" | "{":
                     self.error(f"special character {c!r} is not implemented")  # TODO
                 case "\\":
                     match self.peek(k=2):
@@ -73,7 +79,7 @@ class Tokenizer:
                             self.error("unfinished escape sequence")
                         case _:
                             yield self.read_CharacterSet(reader)
-                case _:
+                case "." | "[" | _:
                     yield self.read_CharacterSet(reader)
 
     def read_LPar(self, reader: Reader) -> Token:
@@ -101,17 +107,60 @@ class Tokenizer:
                     self.error("unfinished escape sequence")
                 else:
                     reader.read()
-                    if self.flags & PatternFlag.IGNORECASE:
-                        c = c.lower()
-                    return CharacterSet(reader.span, reader.text, set=RangeSet([ord(c)]))
+                    return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
             case ".":
                 reader.read(".")
                 if self.flags & PatternFlag.DOTALL:
                     return CharacterSet(reader.span, reader.text, set=RangeSet(complement=True))
                 else:
                     return CharacterSet(reader.span, reader.text, set=RangeSet([ord("\n")], complement=True))
+            case "[":
+                return self._read_CharacterSet_brackets(reader)
             case _:
-                reader.read()
-                if self.flags & PatternFlag.IGNORECASE:
-                    c = c.lower()
-                return CharacterSet(reader.span, reader.text, set=RangeSet([ord(c)]))
+                c = reader.read()
+                return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
+
+    def _read_CharacterSet_brackets(self, reader: Reader) -> Token:
+        rs = RangeSet()
+        complement = False
+        reader.read("[")
+
+        # special cases at start of inside of brackets
+        match c := self.peek():
+            case "^":
+                complement = True
+                reader.read("^")
+            case "]" | "-":
+                reader.read(c)
+                rs |= {ord(c)}
+
+        running = True
+        while running:
+            match (self.peek(), self.peek(2), self.peek(3)):
+                case (None, _, _):
+                    self.error("unfinished character set")
+                case ("]", _, _):
+                    reader.read("]")
+                    running = False
+                case ("-", "]", _):
+                    reader.read("-")
+                    reader.read("]")
+                    rs |= {ord("-")}
+                    running = False
+                case (c1, "-", c2):
+                    match c2:
+                        case "]":
+                            reader.read(c1)
+                            rs |= {ord(self.normalize_case(c1))}
+                        case None:
+                            self.error("unfinished character set")
+                        case _:
+                            reader.read(c1)
+                            reader.read("-")
+                            reader.read(c2)
+                            rs |= RangeSet(ranges=[(ord(self.normalize_case(c1)), ord(self.normalize_case(c2)) + 1)])
+                case _:
+                    c = reader.read()
+                    rs |= {ord(self.normalize_case(c))}
+
+        return CharacterSet(reader.span, reader.text, set=RangeSet(ranges=rs.ranges, complement=complement))
