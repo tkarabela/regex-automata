@@ -183,10 +183,10 @@ class Tokenizer:
         reader.read("[")
 
         # special cases at start of inside of brackets
+        if self.peek() == "^":
+            complement = True
+            reader.read("^")
         match c := self.peek():
-            case "^":
-                complement = True
-                reader.read("^")
             case "]" | "-":
                 reader.read(c)
                 rs |= {ord(c)}
@@ -215,7 +215,11 @@ class Tokenizer:
                             reader.read(c1)
                             reader.read("-")
                             reader.read(c2)
-                            rs |= RangeSet(ranges=[(ord(self.normalize_case(c1)), ord(self.normalize_case(c2)) + 1)])
+                            start = ord(self.normalize_case(c1))
+                            end = ord(self.normalize_case(c2))
+                            if start > end:
+                                self.error(f"malformed character set ({c1!r} > {c2!r})")
+                            rs |= RangeSet(ranges=[(start, end+1)])
                 case _:
                     c = reader.read()
                     rs |= {ord(self.normalize_case(c))}

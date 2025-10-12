@@ -65,7 +65,7 @@ class Pattern:
 
     def search(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
         # TODO implement this properly via automaton
-        end_ = end if end is not None else len(text)
+        end_ = end if end is not None else len(text) + 1
         for i in range(start, end_):
             m = self.match(text, i, end)
             if m is not None:

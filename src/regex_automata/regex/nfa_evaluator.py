@@ -20,7 +20,7 @@ class NFAEvaluator:
         entered_final = bool(self.states & self.final_states)
         left_final = False
 
-        for i in range(start, end_):
+        for i in range(min(len(text), start), min(len(text), end_)):
             c = text[i]
             new_states = self.step(ord(c), self.states)
             new_in_final = bool(new_states & self.final_states)
