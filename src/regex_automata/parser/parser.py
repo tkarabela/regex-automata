@@ -65,7 +65,7 @@ class Parser:
             case LPar() | CharacterSet():
                 F = self.p4()
             case RPar() | None:
-                F = self.p12()
+                F = self.p13()
             case _:
                 self.error()
 
@@ -96,6 +96,8 @@ class Parser:
         match self.peek():
             case LPar() | CharacterSet():
                 E = self.p1()
+            case RPar() | None:
+                E = self.p12()
             case _:
                 self.error()
 
@@ -246,5 +248,12 @@ class Parser:
     def p12(self) -> AstNode:
         """
         E  -> ε
+        """
+        return AstEmpty()
+
+    @rule
+    def p13(self) -> AstNode:
+        """
+        F  -> ε
         """
         return AstEmpty()

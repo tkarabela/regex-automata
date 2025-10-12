@@ -82,6 +82,7 @@ The recursive descent parser uses the following LL(1) grammar:
 10.  H  → ( E )
 11.  H  → a
 12.  E  → ε
+13.  F  → ε
 ```
 
 Which is derived from the following CFG:

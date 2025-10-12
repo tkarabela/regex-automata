@@ -39,6 +39,11 @@ import regex_automata
                           ("a{2,3}", "aa", True),
                           ("a{2,3}", "aaa", True),
                           ("a{2,3}", "aaaa", False),
+                          ("(a|)", "a", True),
+                          ("(a|)", "", True),
+                          # ("a||c|", "", True),
+                          # ("a||c|", "a", True),
+                          # ("a||c|", "c", True),
                           ])
 def test_fullmatch_regex(pattern: str, s: str, result: bool):
     assert (regex_automata.fullmatch(pattern, s) is not None) is result
