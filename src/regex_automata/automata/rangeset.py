@@ -109,3 +109,16 @@ class RangeSet(Set[int], Hashable):
             ranges=[(x, y) for x, y in d.get("ranges", ())],
             complement=d.get("complement", False),
         )
+
+
+WORD_RANGESET = RangeSet(
+    values=[ord("_")],
+    ranges=[(ord("a"), ord("z")+1), (ord("A"), ord("Z")+1), (ord("0"), ord("9")+1)]
+)
+NONWORD_RANGESET = RangeSet(ranges=WORD_RANGESET.ranges, complement=True)
+WHITESPACE_RANGESET = RangeSet(
+    values=map(ord, "\f\n\r\t\v\u0020\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000\ufeff")
+)
+NONWHITESPACE_RANGESET = RangeSet(ranges=WHITESPACE_RANGESET.ranges, complement=True)
+DIGIT_RANGESET = RangeSet(ranges=[(ord("0"), ord("9")+1)])
+NONDIGIT_RANGESET = RangeSet(ranges=DIGIT_RANGESET.ranges, complement=True)

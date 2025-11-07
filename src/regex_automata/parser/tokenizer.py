@@ -2,6 +2,8 @@ from typing import Iterator, NoReturn
 
 from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet
 from ..automata.rangeset import RangeSet
+from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET, DIGIT_RANGESET, NONDIGIT_RANGESET, \
+    WHITESPACE_RANGESET, NONWHITESPACE_RANGESET
 from ..errors import TokenizerError
 from ..regex.flags import PatternFlag
 
@@ -156,15 +158,33 @@ class Tokenizer:
         return Pipe(reader.span, reader.text)
 
     def read_CharacterSet(self, reader: Reader) -> CharacterSet:
-        match c := self.peek():
+        match self.peek():
             case "\\":
                 reader.read("\\")
-                c = self.peek()
-                if c is None:
-                    self.error("unfinished escape sequence")
-                else:
-                    reader.read()
-                    return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
+                match self.peek():
+                    case None:
+                        self.error("unfinished escape sequence")
+                    case "w":
+                        reader.read("w")
+                        return CharacterSet(reader.span, reader.text, set=WORD_RANGESET)
+                    case "W":
+                        reader.read("W")
+                        return CharacterSet(reader.span, reader.text, set=NONWORD_RANGESET)
+                    case "d":
+                        reader.read("d")
+                        return CharacterSet(reader.span, reader.text, set=DIGIT_RANGESET)
+                    case "D":
+                        reader.read("D")
+                        return CharacterSet(reader.span, reader.text, set=NONDIGIT_RANGESET)
+                    case "s":
+                        reader.read("s")
+                        return CharacterSet(reader.span, reader.text, set=WHITESPACE_RANGESET)
+                    case "S":
+                        reader.read("S")
+                        return CharacterSet(reader.span, reader.text, set=NONWHITESPACE_RANGESET)
+                    case _:
+                        c = reader.read()
+                        return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
             case ".":
                 reader.read(".")
                 if self.flags & PatternFlag.DOTALL:
@@ -191,6 +211,7 @@ class Tokenizer:
                 reader.read(c)
                 rs |= {ord(c)}
 
+        # TODO support escape sequences here
         running = True
         while running:
             match (self.peek(), self.peek(2), self.peek(3)):
