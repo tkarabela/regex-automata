@@ -1,9 +1,8 @@
 import functools
 from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
-from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet
-from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty
-from ..automata.nfa import LabeledRangeSet
+from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion
+from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty, AstBoundaryAssertion
 from ..errors import ParserError
 
 
@@ -62,7 +61,7 @@ class Parser:
         """
         # F
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 F = self.p4()
             case RPar() | None:
                 F = self.p13()
@@ -94,7 +93,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 E = self.p1()
             case RPar() | None:
                 E = self.p12()
@@ -117,7 +116,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 G = self.p7()
             case _:
                 self.error()
@@ -125,7 +124,7 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 Fprime = self.p5()
             case Pipe() | RPar() | None:
                 Fprime = self.p6()
@@ -144,7 +143,7 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 G = self.p7()
             case _:
                 self.error()
@@ -152,7 +151,7 @@ class Parser:
         # F'
         Fprime: AstNode | None
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 Fprime = self.p5()
             case Pipe() | RPar() | None:
                 Fprime = self.p6()
@@ -182,6 +181,8 @@ class Parser:
                 H = self.p10()
             case CharacterSet():
                 H = self.p11()
+            case BoundaryAssertion():
+                H = self.p14()
             case _:
                 self.error()
 
@@ -189,7 +190,7 @@ class Parser:
         match self.peek():
             case Repetition():
                 Gprime = self.p8(H)
-            case LPar() | CharacterSet() | Pipe() | RPar() | None:
+            case LPar() | CharacterSet() | BoundaryAssertion() | Pipe() | RPar() | None:
                 Gprime = self.p9(H)
             case _:
                 self.error()
@@ -221,7 +222,7 @@ class Parser:
 
         # E
         match self.peek():
-            case LPar() | CharacterSet():
+            case LPar() | CharacterSet() | BoundaryAssertion():
                 E = self.p1()
             case RPar():
                 E = self.p12()
@@ -239,10 +240,10 @@ class Parser:
         H  -> a
         """
         a = self.read(CharacterSet)
-        return AstCharacterSet(LabeledRangeSet(
-            set=a.set,
+        return AstCharacterSet(
+            rs=a.set,
             label=a.text
-        ))
+        )
 
     @rule
     def p12(self) -> AstNode:
@@ -257,3 +258,11 @@ class Parser:
         F  -> ε
         """
         return AstEmpty()
+
+    @rule
+    def p14(self) -> AstNode:
+        """
+        H  -> boundary_assertion
+        """
+        boundary = self.read(BoundaryAssertion)
+        return AstBoundaryAssertion(boundary.semantic)

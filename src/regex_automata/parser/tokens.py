@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from enum import Enum
 
 from regex_automata.automata.rangeset import RangeSet
 
@@ -33,3 +34,17 @@ class RPar(Token):
 @dataclass
 class Pipe(Token):
     pass
+
+
+class BoundaryAssertionSemantic(Enum):
+    INPUT_START = "INPUT_START"
+    INPUT_END = "INPUT_END"
+    LINE_START = "LINE_START"
+    LINE_END = "LINE_END"
+    WORD_BOUNDARY = "WORD_BOUNDARY"
+    NONWORD_BOUNDARY = "NONWORD_BOUNDARY"
+
+
+@dataclass
+class BoundaryAssertion(Token):
+    semantic: BoundaryAssertionSemantic

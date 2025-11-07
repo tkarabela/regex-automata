@@ -1,6 +1,5 @@
 import pytest
 
-from regex_automata.automata.nfa import LabeledRangeSet
 from regex_automata.automata.rangeset import RangeSet
 from regex_automata.errors import TokenizerError
 from regex_automata.parser.ast import AstUnion, AstCharacterSet, AstConcatenation
@@ -15,34 +14,30 @@ def test_parse_regex(pattern: str):
     Parser(tokens).parse()
 
 
-def _lrs(s: str) -> LabeledRangeSet:
-    return LabeledRangeSet(RangeSet(map(ord, s)), s)
+def _ast_character_set(s: str) -> AstCharacterSet:
+    return AstCharacterSet(RangeSet(map(ord, s)), s)
 
 
 def test_parse_tree_union():
     tokens = list(Tokenizer("ab|cd").get_tokens())
     assert Parser(tokens).parse() == AstUnion(
-        AstConcatenation(AstCharacterSet(_lrs("a")), AstCharacterSet(_lrs("b"))),
-        AstConcatenation(AstCharacterSet(_lrs("c")), AstCharacterSet(_lrs("d"))),
+        AstConcatenation(_ast_character_set("a"), _ast_character_set("b")),
+        AstConcatenation(_ast_character_set("c"), _ast_character_set("d")),
     )
+
 
 def test_parse_tree_union_parens():
     tokens = list(Tokenizer("ab|(cd|ef)|gh").get_tokens())
     assert Parser(tokens).parse() == AstUnion(
-        AstConcatenation(AstCharacterSet(_lrs("a")), AstCharacterSet(_lrs("b"))),
+        AstConcatenation(_ast_character_set("a"), _ast_character_set("b")),
         AstUnion(
             AstUnion(
-                AstConcatenation(AstCharacterSet(_lrs("c")), AstCharacterSet(_lrs("d"))),
-                AstConcatenation(AstCharacterSet(_lrs("e")), AstCharacterSet(_lrs("f"))),
+                AstConcatenation(_ast_character_set("c"), _ast_character_set("d")),
+                AstConcatenation(_ast_character_set("e"), _ast_character_set("f")),
             ),
-            AstConcatenation(AstCharacterSet(_lrs("g")), AstCharacterSet(_lrs("h"))),
+            AstConcatenation(_ast_character_set("g"), _ast_character_set("h")),
         )
     )
-
-@pytest.mark.parametrize("pattern", ["^foo", "bar$"])
-def test_tokenizer_errors_in_pattern_unsupported(pattern):
-    with pytest.raises(TokenizerError):
-        list(Tokenizer(pattern).get_tokens())
 
 
 @pytest.mark.parametrize("pattern", ["\\", "[a", "[a-bc-", "[]",

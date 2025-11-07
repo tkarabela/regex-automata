@@ -1,5 +1,8 @@
-from ..parser.ast import AstNode, AstCharacterSet, AstConcatenation, AstUnion, AstEmpty, AstIteration
-from ..automata.nfa import NFA, LabeledRangeSet
+from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET
+from ..parser.ast import AstNode, AstCharacterSet, AstConcatenation, AstUnion, AstEmpty, AstIteration, \
+    AstBoundaryAssertion
+from ..automata.nfa import NFA, Transition, TransitionPredicate
+from ..parser.tokens import BoundaryAssertionSemantic
 
 
 class NFABuilder:
@@ -9,7 +12,7 @@ class NFABuilder:
     def build(self, epsilon_free: bool) -> NFA:
         nfa = self.convert(self.root)
         if epsilon_free:
-            return nfa.get_epsilon_free_nfa()
+            return nfa.get_trivial_epsilon_free_nfa()
         else:
             return nfa
 
@@ -25,6 +28,8 @@ class NFABuilder:
                 return self.convert_AstUnion(node)
             case AstConcatenation():
                 return self.convert_AstConcatenation(node)
+            case AstBoundaryAssertion():
+                return self.covert_AstBoundaryAssertion(node)
             case _:
                 raise NotImplementedError(f"Cannot convert node {node!r}")
 
@@ -41,7 +46,7 @@ class NFABuilder:
             states=[0, 1],
             initial_state=0,
             final_states=[1],
-            transitions={0: {node.lrs: {1}}}
+            transitions={0: {Transition(predicates=(TransitionPredicate(next=node.rs),), label=node.label): {1}}}
         )
 
     def convert_AstIteration(self, node: AstIteration) -> NFA:
@@ -49,8 +54,8 @@ class NFABuilder:
         nfa = self.convert(u)
 
         for x in nfa.final_states:
-            nfa.transitions.setdefault(x, {}).setdefault(LabeledRangeSet(), set()).add(nfa.initial_state)
-        nfa.final_states = list(sorted(nfa.epsilon_closure(set(nfa.final_states))))
+            nfa.transitions.setdefault(x, {}).setdefault(Transition.make_trivial_epsilon(), set()).add(nfa.initial_state)
+        nfa.final_states = list(sorted(nfa.trivial_epsilon_closure(set(nfa.final_states))))
         return nfa
 
     def convert_AstUnion(self, node: AstUnion) -> NFA:
@@ -65,7 +70,7 @@ class NFABuilder:
         nfa.transitions.update(nfa_v.transitions)
         new_initial_state = max(nfa.states) + 1
         nfa.states.append(new_initial_state)
-        nfa.transitions[new_initial_state] = {LabeledRangeSet(): {nfa_u.initial_state, nfa_v.initial_state}}
+        nfa.transitions[new_initial_state] = {Transition.make_trivial_epsilon(): {nfa_u.initial_state, nfa_v.initial_state}}
         nfa.initial_state = new_initial_state
         return nfa
 
@@ -80,5 +85,65 @@ class NFABuilder:
         nfa.final_states = nfa_v.final_states
         nfa.transitions.update(nfa_v.transitions)
         for s in nfa_u.final_states:
-            nfa.transitions.setdefault(s, {}).setdefault(LabeledRangeSet(), set()).add(nfa_v.initial_state)
+            nfa.transitions.setdefault(s, {}).setdefault(Transition.make_trivial_epsilon(), set()).add(nfa_v.initial_state)
         return nfa
+
+    def covert_AstBoundaryAssertion(self, node: AstBoundaryAssertion) -> NFA:
+        eof_rs = RangeSet((-1,))
+        eof_or_newline_rs = RangeSet((-1, ord("\n")))
+
+        match node.semantic:
+            case BoundaryAssertionSemantic.INPUT_START:
+                transition = Transition(
+                    predicates=(TransitionPredicate(previous=eof_rs),),
+                    consume_char=False,
+                    label="input start"
+                )
+            case BoundaryAssertionSemantic.INPUT_END:
+                transition = Transition(
+                    predicates=(TransitionPredicate(next=eof_rs),),
+                    consume_char=False,
+                    label="input end"
+                )
+            case BoundaryAssertionSemantic.LINE_START:
+                transition = Transition(
+                    predicates=(TransitionPredicate(previous=eof_or_newline_rs),),
+                    consume_char=False,
+                    label="line start"
+                )
+            case BoundaryAssertionSemantic.LINE_END:
+                transition = Transition(
+                    predicates=(TransitionPredicate(next=eof_or_newline_rs),),
+                    consume_char=False,
+                    label="line end"
+                )
+            case BoundaryAssertionSemantic.WORD_BOUNDARY:
+                transition = Transition(
+                    predicates=(
+                        TransitionPredicate(WORD_RANGESET, NONWORD_RANGESET),
+                        TransitionPredicate(WORD_RANGESET, eof_rs),
+                        TransitionPredicate(NONWORD_RANGESET, WORD_RANGESET),
+                        TransitionPredicate(eof_rs, WORD_RANGESET),
+                    ),
+                    consume_char=False,
+                    label="\\b"
+                )
+            case BoundaryAssertionSemantic.NONWORD_BOUNDARY:
+                transition = Transition(
+                    predicates=(
+                        TransitionPredicate(WORD_RANGESET, WORD_RANGESET),
+                        TransitionPredicate(NONWORD_RANGESET, NONWORD_RANGESET),
+                        TransitionPredicate(NONWORD_RANGESET, eof_rs),
+                        TransitionPredicate(eof_rs, NONWORD_RANGESET),
+                    ),consume_char=False,
+                    label="\\B"
+                )
+            case _:
+                raise NotImplementedError
+
+        return NFA(
+            states=[0, 1],
+            initial_state=0,
+            final_states=[1],
+            transitions={0: {transition: {1}}}
+        )

@@ -25,5 +25,7 @@ def compile(pattern: str, flags: PatternFlag = PatternFlag.NOFLAG, epsilon_free:
 NOFLAG = PatternFlag.NOFLAG
 IGNORECASE = PatternFlag.IGNORECASE
 DOTALL = PatternFlag.DOTALL
+MULTILINE = PatternFlag.MULTILINE
 I = PatternFlag.I
 S = PatternFlag.S
+M = PatternFlag.M

@@ -109,3 +109,28 @@ def test_search():
     assert m is not None and m.match == "abc@def.com"
     m = p1.search("text abc@def.com xyz@123.com", start=10)
     assert m is not None and m.match == "xyz@123.com"
+
+def test_boundary_assertion():
+    m = regex_automata.search(r"abc$", "foo abc")
+    assert m is not None and m.match == "abc"
+    m = regex_automata.search(r"abc$", "abcdef")
+    assert m is None
+    m = regex_automata.search(r"abc$", "abc\ndef", regex_automata.MULTILINE)
+    assert m is not None and m.match == "abc"
+
+    m = regex_automata.search(r"^abc", "abc foo")
+    assert m is not None and m.match == "abc"
+    # m = regex_automata.search(r"^abc", "foo abc")
+    # assert m is None
+    m = regex_automata.search(r"^abc", "foo\nabc", regex_automata.MULTILINE)
+    assert m is not None and m.match == "abc"
+
+    m = regex_automata.search(r"\bm", "moon")
+    assert m is not None and m.span == (0, 1)
+    m = regex_automata.search(r"oon\b", "moon")
+    assert m is not None and m.span == (1, 4)
+
+    # m = regex_automata.search(r"\Bon", "at noon")
+    # assert m is not None and m.span == (5, 8)
+    m = regex_automata.search(r"\Bno", "at noon")
+    assert m is None

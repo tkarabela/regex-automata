@@ -45,11 +45,12 @@ Finite automaton accepting `(foo)*bar|baz`:
 - Library
   - `match()`, `fullmatch()` and `search()` methods (search is currently implemented naively via match)
   - `Match` object containing span and matched text (but no groups)
-  - flags `DOTALL` and `IGNORECASE`
+  - flags `DOTALL`, `IGNORECASE` and `MULTILINE`
 
 - Syntax
-  - character sets: `.`, `[...]` (special sequences such as `\w` are not supported)
+  - character sets: `.`, `[...]` (special sequences such as `\w` are supported, but not inside square brackets)
   - repetition: `*`, `?`, `+`, `{n,k}`
+  - boundary assertions: `^`, `$`, `\b`, `\B`, `\A`, `\Z`
   - basic groups: `(...)` that behave like `(?:...)` ie. non-capturing
 
 ## Implementation overview
@@ -80,9 +81,10 @@ The recursive descent parser uses the following LL(1) grammar:
  8.  G' → *
  9.  G' → ε
 10.  H  → ( E )
-11.  H  → a
+11.  H  → a                     (a character or character set)
 12.  E  → ε
 13.  F  → ε
+14.  H  → boundary_assertion    (one of: ^, $, \A, \Z, \b, \B)
 ```
 
 Which is derived from the following CFG:
@@ -97,6 +99,7 @@ G → H *
 G → H
 H → ( E )
 H → a
+H → boundary_assertion
 ```
 
 Which is derived from the following CFG:
@@ -107,6 +110,7 @@ E → E E
 E → E *
 E → ( E )
 E → a
+E → boundary_assertion
 E → ε
 ```
 

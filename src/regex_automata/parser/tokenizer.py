@@ -1,7 +1,6 @@
 from typing import Iterator, NoReturn
 
-from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet
-from ..automata.rangeset import RangeSet
+from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion, BoundaryAssertionSemantic
 from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET, DIGIT_RANGESET, NONDIGIT_RANGESET, \
     WHITESPACE_RANGESET, NONWHITESPACE_RANGESET
 from ..errors import TokenizerError
@@ -87,11 +86,13 @@ class Tokenizer:
                 case ".":
                     yield self.read_CharacterSet(reader)
                 case "^" | "$":
-                    self.error(f"special character {c!r} is not implemented")  # TODO
+                    yield self.read_BoundaryAssertion(reader)
                 case "\\":
                     match self.peek(k=2):
                         case None:
                             self.error("unfinished escape sequence")
+                        case "A" | "Z" | "b" | "B":
+                            yield self.read_BoundaryAssertion(reader)
                         case _:
                             yield self.read_CharacterSet(reader)
                 case "." | "[" | _:
@@ -246,3 +247,38 @@ class Tokenizer:
                     rs |= {ord(self.normalize_case(c))}
 
         return CharacterSet(reader.span, reader.text, set=RangeSet(ranges=rs.ranges, complement=complement))
+
+    def read_BoundaryAssertion(self, reader: Reader) -> BoundaryAssertion:
+        match (self.peek(), self.peek(2)):
+            case ("^", _):
+                reader.read("^")
+                return BoundaryAssertion(
+                    reader.span,
+                    reader.text,
+                    BoundaryAssertionSemantic.LINE_START if self.flags & PatternFlag.MULTILINE else BoundaryAssertionSemantic.INPUT_START
+                )
+            case ("$", _):
+                reader.read("$")
+                return BoundaryAssertion(
+                    reader.span,
+                    reader.text,
+                    BoundaryAssertionSemantic.LINE_END if self.flags & PatternFlag.MULTILINE else BoundaryAssertionSemantic.INPUT_END
+                )
+            case("\\", "A"):
+                reader.read("\\")
+                reader.read("A")
+                return BoundaryAssertion(reader.span, reader.text, BoundaryAssertionSemantic.INPUT_START)
+            case ("\\", "Z"):
+                reader.read("\\")
+                reader.read("Z")
+                return BoundaryAssertion(reader.span, reader.text, BoundaryAssertionSemantic.INPUT_END)
+            case ("\\", "b"):
+                reader.read("\\")
+                reader.read("b")
+                return BoundaryAssertion(reader.span, reader.text, BoundaryAssertionSemantic.WORD_BOUNDARY)
+            case ("\\", "B"):
+                reader.read("\\")
+                reader.read("B")
+                return BoundaryAssertion(reader.span, reader.text, BoundaryAssertionSemantic.NONWORD_BOUNDARY)
+            case _:
+                self.error()

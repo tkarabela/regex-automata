@@ -2,7 +2,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Iterator, Self
 
-from regex_automata.automata.nfa import LabeledRangeSet
+from regex_automata.automata.rangeset import RangeSet
+from regex_automata.parser.tokens import BoundaryAssertionSemantic
 
 
 @dataclass
@@ -24,10 +25,26 @@ class AstNode:
 
 @dataclass
 class AstCharacterSet(AstNode):
-    lrs: LabeledRangeSet
+    rs: RangeSet
+    label: str
 
     def get_label(self) -> str:
-        return self.lrs.label
+        return self.label
+
+
+@dataclass
+class AstBoundaryAssertion(AstNode):
+    semantic: BoundaryAssertionSemantic
+
+    def get_label(self) -> str:
+        return {
+            BoundaryAssertionSemantic.INPUT_START: "input start",
+            BoundaryAssertionSemantic.INPUT_END: "input end",
+            BoundaryAssertionSemantic.LINE_START: "line start",
+            BoundaryAssertionSemantic.LINE_END: "line end",
+            BoundaryAssertionSemantic.WORD_BOUNDARY: "\\b",
+            BoundaryAssertionSemantic.NONWORD_BOUNDARY: "\\B",
+        }[self.semantic]
 
 
 @dataclass

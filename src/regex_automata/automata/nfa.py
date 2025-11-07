@@ -1,29 +1,43 @@
+from copy import deepcopy
 from dataclasses import dataclass
-from typing import Self, Any
-import json
+from typing import Self
 from itertools import count
 
 from .rangeset import RangeSet
-from ..common import PathOrStr
 
 
 @dataclass(frozen=True)
-class LabeledRangeSet:
-    set: RangeSet = RangeSet()
+class TransitionPredicate:
+    previous: RangeSet | None = None
+    next: RangeSet | None = None
+
+    @property
+    def is_trivial(self) -> bool:
+        return self.previous is None and self.next is None
+
+
+@dataclass(frozen=True)
+class Transition:
+    predicates: tuple[TransitionPredicate, ...]
+    consume_char: bool = True
     label: str = ""
 
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "set": self.set.to_dict(),
-            "label": self.label,
-        }
+    def matches(self, c_previous: int, c_next: int) -> bool:
+        for p in self.predicates:
+            if p.next is not None and c_next not in p.next:
+                continue
+            if p.previous is not None and c_previous not in p.previous:
+                continue
+            return True
+        return False
+
+    @property
+    def is_trivial_epsilon(self) -> bool:
+        return not self.consume_char and all(p.is_trivial for p in self.predicates)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> Self:
-        return cls(
-            set=RangeSet.from_dict(d.get("set", {})),
-            label=d.get("label", ""),
-        )
+    def make_trivial_epsilon(cls) -> Self:
+        return cls(predicates=(TransitionPredicate(),), consume_char=False, label="ε")
 
 
 @dataclass
@@ -35,49 +49,10 @@ class NFA:
     states: list[int]
     initial_state: int
     final_states: list[int]
-    transitions: dict[int, dict[LabeledRangeSet, set[int]]]
-
-    @classmethod
-    def from_file(cls, path: PathOrStr) -> Self:
-        with open(path) as fp:
-            data = json.load(fp)
-            return cls.from_dict(data)
-
-    def to_file(self, path: PathOrStr) -> None:
-        data = self.to_dict()
-        with open(path, "w") as fp:
-            json.dump(data, fp, indent=4)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> Self:
-        transitions: dict[int, dict[LabeledRangeSet, set[int]]] = {}
-        for u, lrs_, v in data["transitions"]:
-            lrs = LabeledRangeSet.from_dict(lrs_)
-            transitions.setdefault(u, {}).setdefault(lrs, set()).add(v)
-
-        return cls(
-            states=data["states"],
-            initial_state=data["initial_state"],
-            final_states=data["final_states"],
-            transitions=transitions,
-        )
-
-    def to_dict(self) -> dict[str, Any]:
-        transitions = []
-        for u, tmp in self.transitions.items():
-            for lrs, vs in tmp.items():
-                for v in vs:
-                    transitions.append([u, lrs.to_dict(), v])
-
-        return {
-            "states": self.states,
-            "initial_state": self.initial_state,
-            "final_states": self.final_states,
-            "transitions": transitions,
-        }
+    transitions: dict[int, dict[Transition, set[int]]]
 
     def copy(self) -> "NFA":
-        return self.from_dict(self.to_dict())
+        return deepcopy(self)
 
     def renumber_states(self, x0: int) -> "NFA":
         f = dict(zip(self.states, count(x0)))
@@ -86,35 +61,49 @@ class NFA:
             initial_state=f[self.initial_state],
             final_states=[f[x] for x in self.final_states],
             transitions={
-                f[x]: {lrs: {f[y] for y in ys} for lrs, ys in d.items()}
+                f[x]: {p: {f[y] for y in ys} for p, ys in d.items()}
                 for x, d in self.transitions.items()
             },
         )
 
-    def epsilon_closure(self, states: set[int]) -> set[int]:
+    def epsilon_closure(self, states: set[int], c_previous: int, c_next: int) -> set[int]:
         closure = set(states)
         while True:
             new_closure = closure
             for u in closure:
-                new_closure = new_closure | self.transitions.get(u, {}).get(LabeledRangeSet(), set())
+                for p, vs in self.transitions.get(u, {}).items():
+                    if not p.consume_char and p.matches(c_previous, c_next):
+                        new_closure = new_closure | vs
             if len(closure) == len(new_closure):
                 break
             closure = new_closure
         return closure
 
-    def get_epsilon_free_nfa(self) -> "EpsilonFreeNFA":
+    def trivial_epsilon_closure(self, states: set[int]) -> set[int]:
+        closure = set(states)
+        while True:
+            new_closure = closure
+            for u in closure:
+                for p, vs in self.transitions.get(u, {}).items():
+                    if p.is_trivial_epsilon:
+                        new_closure = new_closure | vs
+            if len(closure) == len(new_closure):
+                break
+            closure = new_closure
+        return closure
+
+    def get_trivial_epsilon_free_nfa(self) -> "NFA":
         states = set(self.states)
         initial_state = self.initial_state
         final_states = set(self.final_states)
-        transitions: dict[int, dict[LabeledRangeSet, set[int]]] = {}
+        transitions: dict[int, dict[Transition, set[int]]] = {}
 
         for u in self.states:
-            closure = self.epsilon_closure({u})
+            closure = self.trivial_epsilon_closure({u})
             for v in closure:
                 transitions_u = transitions.setdefault(u, {})
-                for lrs, ws in self.transitions.get(v, {}).items():
-                    if not lrs.set.empty:
-                        transitions_u.setdefault(lrs, set()).update(ws)
+                for p, ws in self.transitions.get(v, {}).items():
+                    transitions_u.setdefault(p, set()).update(ws)
 
                 if v in self.final_states:
                     final_states.add(u)
@@ -140,15 +129,9 @@ class NFA:
                         if not vs:
                             transitions_u.pop(c)
 
-        return EpsilonFreeNFA(
+        return NFA(
             states=list(sorted(reachable_states)),
             initial_state=initial_state,
             final_states=list(sorted(final_states)),
             transitions=transitions,
         )
-
-
-@dataclass
-class EpsilonFreeNFA(NFA):
-    def epsilon_closure(self, states: set[int]) -> set[int]:
-        return states

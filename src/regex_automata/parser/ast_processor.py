@@ -1,5 +1,6 @@
 
-from .ast import AstNode, AstEmpty, AstConcatenation, AstUnion, AstRepetition, AstCharacterSet, AstIteration
+from .ast import AstNode, AstEmpty, AstConcatenation, AstUnion, AstRepetition, AstCharacterSet, AstIteration, \
+    AstBoundaryAssertion
 
 
 class ASTProcessor:
@@ -23,8 +24,10 @@ class ASTProcessor:
                 return self.convert_AstUnion(node)
             case AstConcatenation():
                 return self.convert_AstConcatenation(node)
+            case AstBoundaryAssertion():
+                return self.convert_AstBoundaryAssertion(node)
             case _:
-                raise NotImplementedError(f"Cannot convert node {node!r}")
+                return node
 
     def convert_AstEmpty(self, node: AstEmpty) -> AstNode:
         return node
@@ -62,6 +65,9 @@ class ASTProcessor:
 
     def convert_AstConcatenation(self, node: AstConcatenation) -> AstNode:
         return AstConcatenation(self.convert(node.u), self.convert(node.v))
+
+    def convert_AstBoundaryAssertion(self, node: AstBoundaryAssertion) -> AstNode:
+        return node
 
     @staticmethod
     def iterated_concatenation(node: AstNode, n: int) -> AstNode:

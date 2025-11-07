@@ -15,8 +15,8 @@ class NFAVisualizer:
             g.node(str(u), shape="doublecircle" if u in self.nfa.final_states else "circle")
         g.edge("", str(self.nfa.initial_state))
         for u, d in self.nfa.transitions.items():
-            for lrs, vs in d.items():
-                label = lrs.label.replace("\\", "\\\\") or "ε"
+            for p, vs in d.items():
+                label = p.label.replace("\\", "\\\\")
                 for v in vs:
                     g.edge(str(u), str(v), label=label)
         return g
