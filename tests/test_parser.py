@@ -2,7 +2,7 @@ import pytest
 
 from regex_automata.automata.rangeset import RangeSet
 from regex_automata.errors import TokenizerError
-from regex_automata.parser.ast import AstUnion, AstCharacterSet, AstConcatenation
+from regex_automata.parser.ast import AstUnion, AstCharacterSet, AstConcatenation, AstGroup
 from regex_automata.parser.parser import Parser
 from regex_automata.parser.tokenizer import Tokenizer
 
@@ -31,9 +31,12 @@ def test_parse_tree_union_parens():
     assert Parser(tokens).parse() == AstUnion(
         AstConcatenation(_ast_character_set("a"), _ast_character_set("b")),
         AstUnion(
-            AstUnion(
-                AstConcatenation(_ast_character_set("c"), _ast_character_set("d")),
-                AstConcatenation(_ast_character_set("e"), _ast_character_set("f")),
+            AstGroup(
+                1,
+                AstUnion(
+                    AstConcatenation(_ast_character_set("c"), _ast_character_set("d")),
+                    AstConcatenation(_ast_character_set("e"), _ast_character_set("f")),
+                )
             ),
             AstConcatenation(_ast_character_set("g"), _ast_character_set("h")),
         )

@@ -1,6 +1,6 @@
 
 from .ast import AstNode, AstEmpty, AstConcatenation, AstUnion, AstRepetition, AstCharacterSet, AstIteration, \
-    AstBoundaryAssertion
+    AstBoundaryAssertion, AstGroup
 
 
 class ASTProcessor:
@@ -8,7 +8,8 @@ class ASTProcessor:
         self.raw_ast = raw_ast
 
     def get_processed_ast(self) -> AstNode:
-        return self.convert(self.raw_ast)
+        ast = self.convert(self.raw_ast)
+        return AstGroup(0, ast)
 
     def convert(self, node: AstNode) -> AstNode:
         match node:
@@ -26,6 +27,8 @@ class ASTProcessor:
                 return self.convert_AstConcatenation(node)
             case AstBoundaryAssertion():
                 return self.convert_AstBoundaryAssertion(node)
+            case AstGroup():
+                return self.convert_AstGroup(node)
             case _:
                 return node
 
@@ -87,6 +90,9 @@ class ASTProcessor:
 
     def convert_AstBoundaryAssertion(self, node: AstBoundaryAssertion) -> AstNode:
         return node
+
+    def convert_AstGroup(self, node: AstGroup) -> AstNode:
+        return AstGroup(node.number, self.convert(node.u))
 
     @staticmethod
     def iterated_concatenation(node: AstNode, n: int) -> AstNode:

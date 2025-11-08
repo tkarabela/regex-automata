@@ -2,7 +2,8 @@ import functools
 from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 
 from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion
-from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty, AstBoundaryAssertion
+from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty, AstBoundaryAssertion, \
+    AstGroup
 from ..errors import ParserError
 
 
@@ -24,6 +25,7 @@ class Parser:
         self.tokens = list(tokens)
         self.pos = -1
         self.string_pos = -1
+        self.group_number = 1
 
     def read(self, cls: Type[TToken]) -> TToken:
         self.pos += 1
@@ -53,6 +55,11 @@ class Parser:
         if self.peek() is not None:
             self.error("unread input remaining (expected end of input)")
         return root
+
+    def make_group(self, u: AstNode) -> AstGroup:
+        i = self.group_number
+        self.group_number += 1
+        return AstGroup(i, u)
 
     @rule
     def p1(self) -> AstNode:
@@ -232,7 +239,7 @@ class Parser:
         # rpar
         _ = self.read(RPar)
 
-        return E
+        return self.make_group(E)
 
     @rule
     def p11(self) -> AstNode:

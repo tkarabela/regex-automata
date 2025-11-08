@@ -1,6 +1,6 @@
 from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET
 from ..parser.ast import AstNode, AstCharacterSet, AstConcatenation, AstUnion, AstEmpty, AstIteration, \
-    AstBoundaryAssertion
+    AstBoundaryAssertion, AstGroup
 from ..automata.nfa import NFA, Transition, TransitionPredicate
 from ..parser.tokens import BoundaryAssertionSemantic
 
@@ -30,6 +30,8 @@ class NFABuilder:
                 return self.convert_AstConcatenation(node)
             case AstBoundaryAssertion():
                 return self.covert_AstBoundaryAssertion(node)
+            case AstGroup():
+                return self.convert_AstGroup(node)
             case _:
                 raise NotImplementedError(f"Cannot convert node {node!r}")
 
@@ -37,7 +39,7 @@ class NFABuilder:
         return NFA(
             states=[0],
             initial_state=0,
-            final_states=[0],
+            final_states={0},
             transitions={}
         )
 
@@ -45,7 +47,7 @@ class NFABuilder:
         return NFA(
             states=[0, 1],
             initial_state=0,
-            final_states=[1],
+            final_states={1},
             transitions={0: {Transition(predicates=(TransitionPredicate(next=node.rs),), label=node.label): {1}}}
         )
 
@@ -55,7 +57,7 @@ class NFABuilder:
 
         for x in nfa.final_states:
             nfa.transitions.setdefault(x, {}).setdefault(Transition.make_trivial_epsilon(), set()).add(nfa.initial_state)
-        nfa.final_states = list(sorted(nfa.trivial_epsilon_closure(set(nfa.final_states))))
+        nfa.final_states = nfa.trivial_epsilon_closure(set(nfa.final_states))
         return nfa
 
     def convert_AstUnion(self, node: AstUnion) -> NFA:
@@ -66,7 +68,7 @@ class NFABuilder:
 
         nfa = nfa_u.copy()
         nfa.states += nfa_v.states
-        nfa.final_states += nfa_v.final_states
+        nfa.final_states |= nfa_v.final_states
         nfa.transitions.update(nfa_v.transitions)
         new_initial_state = max(nfa.states) + 1
         nfa.states.append(new_initial_state)
@@ -144,6 +146,21 @@ class NFABuilder:
         return NFA(
             states=[0, 1],
             initial_state=0,
-            final_states=[1],
+            final_states={1},
             transitions={0: {transition: {1}}}
         )
+
+    def convert_AstGroup(self, node: AstGroup) -> NFA:
+        nfa_u = self.convert(node.u).renumber_states(1)
+
+        start_state = 0
+        final_state = max(nfa_u.states) + 1
+
+        nfa = nfa_u.copy()
+        nfa.initial_state = start_state
+        nfa.states += [start_state, final_state]
+        nfa.final_states = {final_state}
+        nfa.transitions[start_state] = {Transition.make_begin_group(node.number): {nfa_u.initial_state}}
+        for s in nfa_u.final_states:
+            nfa.transitions.setdefault(s, {}).setdefault(Transition.make_end_group(node.number), set()).add(final_state)
+        return nfa

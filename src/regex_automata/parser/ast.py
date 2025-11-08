@@ -105,3 +105,15 @@ class AstUnion(AstNode):
 class AstEmpty(AstNode):
     def get_label(self) -> str:
         return "ε"
+
+
+@dataclass
+class AstGroup(AstNode):
+    number: int
+    u: AstNode
+
+    def get_label(self) -> str:
+        return f"group {self.number}"
+
+    def iter_children(self) -> Iterator["AstNode"]:
+        yield self.u

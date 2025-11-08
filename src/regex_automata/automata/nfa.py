@@ -20,6 +20,8 @@ class TransitionPredicate:
 class Transition:
     predicates: tuple[TransitionPredicate, ...]
     consume_char: bool = True
+    begin_group: int | None = None
+    end_group: int | None = None
     label: str = ""
 
     def matches(self, c_previous: int, c_next: int) -> bool:
@@ -33,11 +35,26 @@ class Transition:
 
     @property
     def is_trivial_epsilon(self) -> bool:
-        return not self.consume_char and all(p.is_trivial for p in self.predicates)
+        return (
+            not self.consume_char and
+            self.begin_group is None and
+            self.end_group is None and
+            all(p.is_trivial for p in self.predicates)
+        )
 
     @classmethod
     def make_trivial_epsilon(cls) -> Self:
         return cls(predicates=(TransitionPredicate(),), consume_char=False, label="ε")
+
+    @classmethod
+    def make_begin_group(cls, number: int) -> Self:
+        return cls(predicates=(TransitionPredicate(),), consume_char=False, label=f"⟨begin group {number}⟩",
+                   begin_group=number)
+
+    @classmethod
+    def make_end_group(cls, number: int) -> Self:
+        return cls(predicates=(TransitionPredicate(),), consume_char=False, label=f"⟨end group {number}⟩",
+                   end_group=number)
 
 
 @dataclass
@@ -48,18 +65,18 @@ class NFA:
     """
     states: list[int]
     initial_state: int
-    final_states: list[int]
+    final_states: set[int]
     transitions: dict[int, dict[Transition, set[int]]]
 
     def copy(self) -> "NFA":
         return deepcopy(self)
 
-    def renumber_states(self, x0: int) -> "NFA":
+    def renumber_states(self, x0: int = 0) -> "NFA":
         f = dict(zip(self.states, count(x0)))
         return NFA(
             states=[f[x] for x in self.states],
             initial_state=f[self.initial_state],
-            final_states=[f[x] for x in self.final_states],
+            final_states={f[x] for x in self.final_states},
             transitions={
                 f[x]: {p: {f[y] for y in ys} for p, ys in d.items()}
                 for x, d in self.transitions.items()
@@ -133,6 +150,6 @@ class NFA:
         return NFA(
             states=list(sorted(reachable_states)),
             initial_state=initial_state,
-            final_states=list(sorted(final_states)),
+            final_states=final_states,
             transitions=transitions,
-        )
+        ).renumber_states()
