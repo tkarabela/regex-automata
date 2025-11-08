@@ -1,3 +1,5 @@
+from typing import Iterator
+
 from .flags import PatternFlag
 from .match import Match
 from regex_automata.regex.nfa_evaluator import NFAEvaluator
@@ -61,13 +63,17 @@ class Pattern:
 
     def match(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
         evaluator = NFAEvaluator(self.nfa, self.flags)
-        return evaluator.match(text, start, end)
+        try:
+            return next(evaluator.finditer(text, start, end, search=False))
+        except StopIteration:
+            return None
 
     def search(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
-        # TODO implement this properly via automaton
-        end_ = end if end is not None else len(text) + 1
-        for i in range(start, end_):
-            m = self.match(text, i, end)
-            if m is not None:
-                return m
-        return None
+        try:
+            return next(self.finditer(text, start, end))
+        except StopIteration:
+            return None
+
+    def finditer(self, text: str, start: int = 0, end: int | None = None) -> Iterator[Match]:
+        evaluator = NFAEvaluator(self.nfa, self.flags)
+        yield from evaluator.finditer(text, start, end)

@@ -43,7 +43,7 @@ Finite automaton accepting `(foo)*bar|baz`:
 ## Features compared to standard `re` module
 
 - Library
-  - `match()`, `fullmatch()` and `search()` methods (search is currently implemented naively via match)
+  - `match()`, `fullmatch()`, `search()` and `finditer()` methods
   - `Match` object containing span and matched text (but no groups)
   - flags `DOTALL`, `IGNORECASE` and `MULTILINE`
 

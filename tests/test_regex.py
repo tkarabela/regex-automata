@@ -1,6 +1,7 @@
 import pytest
 
 import regex_automata
+from regex_automata.regex.match import Match
 
 
 @pytest.mark.parametrize("pattern,s,result",
@@ -110,6 +111,16 @@ def test_search():
     m = p1.search("text abc@def.com xyz@123.com", start=10)
     assert m is not None and m.match == "xyz@123.com"
 
+
+def test_overlapping_search():
+    p1 = regex_automata.compile(r"aa")
+    assert list(p1.finditer("aaaaaaa")) == [
+        Match((0, 2), "aa"),
+        Match((2, 4), "aa"),
+        Match((4, 6), "aa"),
+    ]
+
+
 def test_boundary_assertion():
     m = regex_automata.search(r"abc$", "foo abc")
     assert m is not None and m.match == "abc"
@@ -120,8 +131,8 @@ def test_boundary_assertion():
 
     m = regex_automata.search(r"^abc", "abc foo")
     assert m is not None and m.match == "abc"
-    # m = regex_automata.search(r"^abc", "foo abc")
-    # assert m is None
+    m = regex_automata.search(r"^abc", "foo abc")
+    assert m is None
     m = regex_automata.search(r"^abc", "foo\nabc", regex_automata.MULTILINE)
     assert m is not None and m.match == "abc"
 
@@ -130,7 +141,7 @@ def test_boundary_assertion():
     m = regex_automata.search(r"oon\b", "moon")
     assert m is not None and m.span == (1, 4)
 
-    # m = regex_automata.search(r"\Bon", "at noon")
-    # assert m is not None and m.span == (5, 8)
+    m = regex_automata.search(r"\Bon", "at noon")
+    assert m is not None and m.span == (5, 7)
     m = regex_automata.search(r"\Bno", "at noon")
     assert m is None
