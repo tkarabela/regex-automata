@@ -13,11 +13,12 @@ import regex_automata
 
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
-pattern.fullmatch("foofoobar")                      # regex_automata.Match
+m = pattern.fullmatch("foofoobar")                  # regex_automata.Match
+m.groupdict()                                       # {0: "foofoobar", 1: "foo"}
 pattern.fullmatch("foo")                            # None
 
 pattern.ast                                         # regex_automata.parser.ast.AstNode
-pattern.ast_raw                                     # regex_automata.parser.ast.AstNode
+pattern.raw_ast                                     # regex_automata.parser.ast.AstNode
 pattern.nfa                                         # regex_automata.automata.nfa.NFA
 
 pattern.render_ast("regex_ast.svg")
@@ -31,11 +32,11 @@ pattern2.tokens
 #  Repetition(span=(17, 18), text='*', min=0, max=None)]
 ```
 
-Abstract syntax tree of `(foo)*bar|baz`:
+Abstract syntax tree of `"(foo)*bar|baz"` (ie. `pattern.ast`):
 
 ![tree for (foo)*bar|baz](./static/example_ast.svg)
 
-Finite automaton accepting `(foo)*bar|baz`:
+Finite automaton accepting `"(foo)*bar|baz"` (ie. `pattern.nfa`):
 
 ![automaton for (foo)*bar|baz](./static/example_nfa.svg)
 
