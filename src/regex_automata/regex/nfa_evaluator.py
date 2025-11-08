@@ -1,94 +1,145 @@
-from typing import Iterator
+from dataclasses import dataclass
+from typing import Iterator, Self, Iterable, Set
 
-from regex_automata.automata.nfa import NFA
+from regex_automata.automata.nfa import NFA, Transition
 from regex_automata.regex.flags import PatternFlag
 from regex_automata.regex.match import Match
 
 
+@dataclass(frozen=True)
+class GroupMatch:
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
+class Head:
+    state: int
+    start: int
+    position: int
+    groups: tuple[GroupMatch | None, ...] = ()
+
+    def apply_transition(self, transition: Transition, next_state: int) -> Self:
+        head = self
+        if transition.begin_group is not None:
+            head = head._begin_group(transition.begin_group)
+        if transition.end_group is not None:
+            head = head._end_group(transition.end_group)
+        return Head(
+            next_state,
+            head.start,
+            head.position + (1 if transition.consume_char else 0),
+            head.groups
+        )
+
+    def _begin_group(self, number: int) -> Self:
+        groups = list(self.groups)
+        while len(groups) <= number:
+            groups.append(None)
+        m = groups[number]
+        if m is not None and m.end == -1:
+            raise ValueError(f"Group {number} has not been closed yet, cannot begin it again")
+        groups[number] = GroupMatch(self.position, -1)
+        return Head(
+            self.state,
+            self.start,
+            self.position,
+            tuple(groups)
+        )
+
+    def _end_group(self, number: int) -> Self:
+        groups = list(self.groups)
+        if len(groups) < number:
+            raise ValueError(f"Group {number} has never been opened, cannot close it")
+        m = groups[number]
+        if m is None:
+            raise ValueError(f"Group {number} has never been opened, cannot close it")
+        elif m.end != -1:
+            raise ValueError(f"Group {number} has already been closed, cannot close it again")
+        groups[number] = GroupMatch(m.start, self.position)
+        return Head(
+            self.state,
+            self.start,
+            self.position,
+            tuple(groups)
+        )
+
+
 class NFAEvaluator:
-    class Head:
-        def __init__(self, evaluator: "NFAEvaluator", start: int) -> None:
-            self.start = start
-            self.evaluator = evaluator
-            self.states: set[int] = set(self.evaluator.initial_states)
-            self.entered_final = bool(self.states & self.evaluator.final_states)
-            self.left_final = False
-
-        def step_epsilon(self, c_previous: int, c_next: int) -> None:
-            self.states = new_states = self._step_epsilon(c_previous, c_next, self.states)
-            new_in_final = bool(new_states & self.evaluator.final_states)
-            self.entered_final = self.entered_final or new_in_final
-            self.left_final = self.entered_final and not new_in_final
-
-        def _step_epsilon(self, c_previous: int, c_next: int, states: set[int]) -> set[int]:
-            return self.evaluator.nfa.epsilon_closure(states, c_previous, c_next)
-
-        def step_read(self, c_previous: int, c_next: int) -> None:
-            self.states = new_states = self._step_read(c_previous, c_next, self.states)
-            new_in_final = bool(new_states & self.evaluator.final_states)
-            self.entered_final = self.entered_final or new_in_final
-            self.left_final = self.entered_final and not new_in_final
-
-        def _step_read(self, c_previous: int, c_next: int, states: set[int]) -> set[int]:
-            assert c_next != -1
-            new_states = set()
-            for u in states:
-                u_transitions = self.evaluator.nfa.transitions.get(u, {})
-                for p, vs in u_transitions.items():
-                    if p.consume_char and p.matches(c_previous, c_next):
-                        new_states.update(vs)
-
-            return new_states
-
-        def __repr__(self) -> str:
-            return f"<Head {self.start=} {self.states=} {self.entered_final=} {self.left_final=}>"
-
     def __init__(self, nfa: NFA, flags: PatternFlag = PatternFlag.NOFLAG) -> None:
         self.nfa = nfa
-        self.initial_states = self.nfa.trivial_epsilon_closure({self.nfa.initial_state})
-        self.heads: list["NFAEvaluator.Head"] = []
         self.flags = flags
-        self.final_states = set(self.nfa.final_states)
+        if len(nfa.final_states) != 1:
+            raise ValueError("Expected NFA with exactly one final state (end of group 0)")
+        self.final_state = next(iter(nfa.final_states))
 
     def finditer(self, text: str, start: int = 0, end: int | None = None, search: bool = True) -> Iterator[Match]:
+        original_text = text
         if self.flags & PatternFlag.IGNORECASE:
             text = text.lower()
 
         end_ = end if end is not None else len(text)
 
-        self.heads.append(self.Head(self, min(len(text), start)))
+        heads = {self.init_head(min(len(text), start))}
 
         c_previous = -1
         for char_no, i in enumerate(range(min(len(text), start), min(len(text), end_))):
-            match_at_position = False
+            print("finditer", char_no, i)
+            print(heads)
             if search and char_no > 0:
-                self.heads.append(self.Head(self, i))
+                heads.add(self.init_head(i))
 
             c_next = ord(text[i])
 
-            for head in self.heads:
-                head.step_epsilon(c_previous, c_next)
-                if not match_at_position and head.left_final:
-                    self.purge_heads(i-1)
-                    yield Match.from_span_and_text(head.start, i-1, text)
-                    match_at_position = True  # avoid returning multiple matches
+            # do epsilon transitions
+            print("do epsilon transitions")
+            heads = self.apply_epsilon_transitions(heads, c_previous, c_next)
+            print(heads)
+            yield from self.iter_matches_from_heads(heads, original_text)
 
-            for head in self.heads:
-                head.step_read(c_previous, c_next)
-                if not match_at_position and head.left_final:
-                    self.purge_heads(i)
-                    yield Match.from_span_and_text(head.start, i, text)
-                    match_at_position = True
+            # do character transitions
+            print("do character transitions")
+            heads = self.apply_character_transitions(heads, c_previous, c_next)
+            print(heads)
+            yield from self.iter_matches_from_heads(heads, original_text)
 
             c_previous = c_next
 
+        print("finished reading input, doing final epsilon transitions")
         c_next = -1
-        for head in self.heads:
-            head.step_epsilon(c_previous, c_next)
+        # do epsilon transitions
+        heads = self.apply_epsilon_transitions(heads, c_previous, c_next)
+        print(heads)
+        yield from self.iter_matches_from_heads(heads, original_text)
 
-            if head.entered_final and not head.left_final:
-                yield Match.from_span_and_text(head.start, end_, text)
-                return
+    def init_head(self, position: int) -> Head:
+        return Head(self.nfa.initial_state, position, position)
 
-    def purge_heads(self, start_min: int) -> None:
-        self.heads = [h for h in self.heads if h.start >= start_min]
+    def apply_epsilon_transitions(self, heads: Iterable[Head], c_previous: int, c_next: int) -> Set[Head]:
+        closure = set(heads)
+        while True:
+            new_closure = closure
+            for head in closure:
+                for transition, next_states in self.nfa.transitions.get(head.state, {}).items():
+                    if not transition.consume_char and transition.matches(c_previous, c_next):
+                        new_closure = new_closure | {head.apply_transition(transition, next_state) for next_state in next_states}
+            if len(closure) == len(new_closure):
+                break
+            closure = new_closure
+        return closure
+
+    def apply_character_transitions(self, heads: Iterable[Head], c_previous: int, c_next: int) -> Set[Head]:
+        new_heads = set()
+        for head in heads:
+            for transition, next_states in self.nfa.transitions.get(head.state, {}).items():
+                if transition.consume_char and transition.matches(c_previous, c_next):
+                    for next_state in next_states:
+                        new_head = head.apply_transition(transition, next_state)
+                        new_heads.add(new_head)
+
+        return new_heads
+
+    def iter_matches_from_heads(self, heads: Iterable[Head], text: str) -> Iterator[Match]:
+        for head in sorted(heads, key=lambda h: (h.start, -h.position)):
+            if head.state == self.final_state:
+                yield Match.from_span_and_text(head.start, head.position, text)
