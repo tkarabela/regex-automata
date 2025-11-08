@@ -176,7 +176,7 @@ class NFAEvaluator:
 
         start_ = min(len(text), start)
         end_ = min(len(text), end if end is not None else len(text))
-
+        last_match_position = -1
         buckets: dict[int, UniquePriorityQueue[Head]] = {}
 
         for char_no, position in enumerate(range(start_, end_+1)):
@@ -185,7 +185,7 @@ class NFAEvaluator:
             else:
                 print(f"\n{position=}, end of input")
 
-            if char_no == 0 or (search and position < end_):
+            if position >= last_match_position and (char_no == 0 or (search and position < end_)):
                 queue = UniquePriorityQueue(self.init_head(position))
                 print(f"\tadding bucket {queue=}")
                 buckets[position] = queue
@@ -229,6 +229,7 @@ class NFAEvaluator:
                                 print(f"\tclearing bucket {start=} (less than {final_head.position=})")
                                 queue.clear()
                                 buckets.pop(start)
+                                last_match_position = final_head.position
 
                         break
                     else:
@@ -276,7 +277,8 @@ class NFAEvaluator:
                 entered_final = True
                 final_heads.add(head)
             c_previous, c_next = self.get_characters(text, start_, end_, head.position)
-            next_heads.update(self._apply_character_transitions(head, c_previous, c_next))
+            if c_previous != -1 or c_next != -1:
+                next_heads.update(self._apply_character_transitions(head, c_previous, c_next))
         queue.update(next_heads)
         left_final = entered_final and all(h.state != self.final_state for h in queue)
         print(f"\t\t-> {entered_final=}, {left_final=}, {final_heads=}")
