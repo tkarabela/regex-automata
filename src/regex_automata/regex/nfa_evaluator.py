@@ -1,15 +1,27 @@
 from dataclasses import dataclass
-from typing import Iterator, Self, Iterable, Set
+from typing import Iterator, Iterable, Set, Collection, TypeVar
+import heapq
 
-from regex_automata.automata.nfa import NFA, Transition
+from regex_automata.automata.nfa import Transition
 from regex_automata.regex.flags import PatternFlag
 from regex_automata.regex.match import Match
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .pattern import Pattern
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
 class GroupMatch:
     start: int
     end: int
+
+    def to_span(self) -> tuple[int, int]:
+        if self.end == -1:
+            raise ValueError("cannot convert unfinished group to span")
+        return self.start, self.end
 
 
 @dataclass(frozen=True)
@@ -19,7 +31,7 @@ class Head:
     position: int
     groups: tuple[GroupMatch | None, ...] = ()
 
-    def apply_transition(self, transition: Transition, next_state: int) -> Self:
+    def apply_transition(self, transition: Transition, next_state: int) -> "Head":
         head = self
         if transition.begin_group is not None:
             head = head._begin_group(transition.begin_group)
@@ -32,7 +44,7 @@ class Head:
             head.groups
         )
 
-    def _begin_group(self, number: int) -> Self:
+    def _begin_group(self, number: int) -> "Head":
         groups = list(self.groups)
         while len(groups) <= number:
             groups.append(None)
@@ -47,7 +59,7 @@ class Head:
             tuple(groups)
         )
 
-    def _end_group(self, number: int) -> Self:
+    def _end_group(self, number: int) -> "Head":
         groups = list(self.groups)
         if len(groups) < number:
             raise ValueError(f"Group {number} has never been opened, cannot close it")
@@ -64,59 +76,183 @@ class Head:
             tuple(groups)
         )
 
+    @property
+    def _ordering_tuple(self) -> tuple[int, int, int]:
+        return self.start, self.state, self.position
+
+    def __lt__(self, other: object) -> bool:
+        if isinstance(other, Head):
+            return self._ordering_tuple < other._ordering_tuple
+        else:
+            return NotImplemented
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Head):
+            return self._ordering_tuple == other._ordering_tuple
+        else:
+            return NotImplemented
+
+    def __ne__(self, other: object) -> bool:
+        return not (self == other)
+
+    def __le__(self, other: object) -> bool:
+        return self == other or self < other
+
+    def __gt__(self, other: object) -> bool:
+        return not (self <= other)
+
+    def __ge__(self, other: object) -> bool:
+        return not (self < other)
+
+    def get_groupspandict(self) -> dict[int, tuple[int, int]]:
+        d = {}
+        for i, m in enumerate(self.groups):
+            if m is not None:
+                d[i] = m.to_span()
+        return d
+
+
+class UniquePriorityQueue(Collection[T]):
+    """Min-heap with unique elements"""
+    def __init__(self, *args: T) -> None:
+        self._heap: list[T] = []
+        self._set: set[T] = set()
+
+        self.update(args)
+
+    def push(self, x: T) -> None:
+        if x in self._set:
+            return
+
+        heapq.heappush(self._heap, x)  # type: ignore[type-var]
+        self._set.add(x)
+
+    def update(self, xs: Iterable[T]) -> None:
+        for x in xs:
+            self.push(x)
+
+    def clear(self) -> None:
+        self._heap.clear()
+        self._set.clear()
+
+    def peek(self) -> T | None:
+        if self._heap:
+            return self._heap[0]
+        else:
+            return None
+
+    def pop(self) -> T:
+        x = heapq.heappop(self._heap)  # type: ignore[type-var]
+        self._set.remove(x)
+        return x
+
+    def __contains__(self, x: object) -> bool:
+        return x in self._set
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._heap)
+
+    def __len__(self) -> int:
+        return len(self._heap)
+
+    def __repr__(self) -> str:
+        return f"UniquePriorityQueue({', '.join(map(repr, sorted(self)))})"  # type: ignore[type-var]
+
 
 class NFAEvaluator:
-    def __init__(self, nfa: NFA, flags: PatternFlag = PatternFlag.NOFLAG) -> None:
-        self.nfa = nfa
+    def __init__(self, pattern: "Pattern", flags: PatternFlag = PatternFlag.NOFLAG) -> None:
+        self.pattern = pattern
+        self.nfa = pattern.nfa
         self.flags = flags
-        if len(nfa.final_states) != 1:
+        if len(self.nfa.final_states) != 1:
             raise ValueError("Expected NFA with exactly one final state (end of group 0)")
-        self.final_state = next(iter(nfa.final_states))
+        self.final_state = next(iter(self.nfa.final_states))
+        self.queue = UniquePriorityQueue[Head]()
 
     def finditer(self, text: str, start: int = 0, end: int | None = None, search: bool = True) -> Iterator[Match]:
         original_text = text
         if self.flags & PatternFlag.IGNORECASE:
             text = text.lower()
 
-        end_ = end if end is not None else len(text)
+        start_ = min(len(text), start)
+        end_ = min(len(text), end if end is not None else len(text))
 
-        heads = {self.init_head(min(len(text), start))}
+        buckets: dict[int, UniquePriorityQueue[Head]] = {}
 
-        c_previous = -1
-        for char_no, i in enumerate(range(min(len(text), start), min(len(text), end_))):
-            print("finditer", char_no, i)
-            print(heads)
-            if search and char_no > 0:
-                heads.add(self.init_head(i))
+        for char_no, position in enumerate(range(start_, end_+1)):
+            if position < end_:
+                print(f"\n{position=}, about to read {text[position]!r}")
+            else:
+                print(f"\n{position=}, end of input")
 
-            c_next = ord(text[i])
+            if char_no == 0 or (search and position < end_):
+                queue = UniquePriorityQueue(self.init_head(position))
+                print(f"\tadding bucket {queue=}")
+                buckets[position] = queue
 
-            # do epsilon transitions
-            print("do epsilon transitions")
-            heads = self.apply_epsilon_transitions(heads, c_previous, c_next)
-            print(heads)
-            yield from self.iter_matches_from_heads(heads, original_text)
+            for start, queue in list(buckets.items()):
+                while True:
+                    # do epsilon transitions
+                    print(f"\tprocessing bucket {start=}, epsilon transitions")
+                    self.apply_epsilon_transitions(queue, text, start_, end_)
+                    for head in sorted(queue):
+                        print(f"\t\t-> {head}")
 
-            # do character transitions
-            print("do character transitions")
-            heads = self.apply_character_transitions(heads, c_previous, c_next)
-            print(heads)
-            yield from self.iter_matches_from_heads(heads, original_text)
+                    # do character transitions
+                    print(f"\tprocessing bucket {start=}, character transitions")
+                    entered_final, left_final, final_heads = self.apply_character_transitions(queue, text, start_, end_)
+                    for head in sorted(queue):
+                        print(f"\t\t-> {head}")
 
-            c_previous = c_next
+                    # do epsilon transitions
+                    print(f"\tprocessing bucket {start=}, epsilon transitions")
+                    reentered_final = self.apply_epsilon_transitions(queue, text, start_, end_)
+                    for head in sorted(queue):
+                        print(f"\t\t-> {head}")
 
-        print("finished reading input, doing final epsilon transitions")
-        c_next = -1
-        # do epsilon transitions
-        heads = self.apply_epsilon_transitions(heads, c_previous, c_next)
-        print(heads)
-        yield from self.iter_matches_from_heads(heads, original_text)
+                    if not entered_final:
+                        break
+
+                    if left_final and not reentered_final:
+                        final_head = max(final_heads)
+                        yield Match(
+                            re=self.pattern,
+                            pos=start_,
+                            endpos=end_,
+                            match=original_text[final_head.start:final_head.position],
+                            groupspandict=final_head.get_groupspandict(),
+                        )
+                        print(f">>>> found {final_head=} <<<<")
+
+                        for start, queue in list(buckets.items()):
+                            if start < final_head.position:
+                                print(f"\tclearing bucket {start=} (less than {final_head.position=})")
+                                queue.clear()
+                                buckets.pop(start)
+
+                        break
+                    else:
+                        print("\tlooping due to entered_final")
+
+        print("all done")
 
     def init_head(self, position: int) -> Head:
         return Head(self.nfa.initial_state, position, position)
 
-    def apply_epsilon_transitions(self, heads: Iterable[Head], c_previous: int, c_next: int) -> Set[Head]:
-        closure = set(heads)
+    def apply_epsilon_transitions(self, queue: UniquePriorityQueue[Head], text: str, start_: int, end_: int) -> bool:
+        next_heads = set()
+        while queue:
+            head = queue.pop()
+            # print(f"\t\tprocessing {head=}")
+            c_previous, c_next = self.get_characters(text, start_, end_, head.position)
+            next_heads.update(self._apply_epsilon_transitions(head, c_previous, c_next))
+        entered_final = any(h.state == self.final_state for h in next_heads)
+        queue.update(next_heads)
+        print(f"\t\t-> {entered_final=}")
+        return entered_final
+
+    def _apply_epsilon_transitions(self, head: Head, c_previous: int, c_next: int) -> Set[Head]:
+        closure = {head}
         while True:
             new_closure = closure
             for head in closure:
@@ -128,18 +264,44 @@ class NFAEvaluator:
             closure = new_closure
         return closure
 
-    def apply_character_transitions(self, heads: Iterable[Head], c_previous: int, c_next: int) -> Set[Head]:
+    def apply_character_transitions(self, queue: UniquePriorityQueue[Head], text: str, start_: int, end_: int) -> tuple[bool, bool, set[Head]]:
+        """-> entered_final, left_final, heads that were final before transition"""
+        next_heads = set()
+        final_heads = set()
+        entered_final = False
+        while queue:
+            head = queue.pop()
+            # print(f"\t\tprocessing {head=}")
+            if head.state == self.final_state:
+                entered_final = True
+                final_heads.add(head)
+            c_previous, c_next = self.get_characters(text, start_, end_, head.position)
+            next_heads.update(self._apply_character_transitions(head, c_previous, c_next))
+        queue.update(next_heads)
+        left_final = entered_final and all(h.state != self.final_state for h in queue)
+        print(f"\t\t-> {entered_final=}, {left_final=}, {final_heads=}")
+        return entered_final, left_final, final_heads
+
+    def _apply_character_transitions(self, head: Head, c_previous: int, c_next: int) -> Set[Head]:
         new_heads = set()
-        for head in heads:
-            for transition, next_states in self.nfa.transitions.get(head.state, {}).items():
-                if transition.consume_char and transition.matches(c_previous, c_next):
-                    for next_state in next_states:
-                        new_head = head.apply_transition(transition, next_state)
-                        new_heads.add(new_head)
+        for transition, next_states in self.nfa.transitions.get(head.state, {}).items():
+            if transition.consume_char and transition.matches(c_previous, c_next):
+                for next_state in next_states:
+                    new_head = head.apply_transition(transition, next_state)
+                    new_heads.add(new_head)
 
         return new_heads
 
-    def iter_matches_from_heads(self, heads: Iterable[Head], text: str) -> Iterator[Match]:
-        for head in sorted(heads, key=lambda h: (h.start, -h.position)):
-            if head.state == self.final_state:
-                yield Match.from_span_and_text(head.start, head.position, text)
+    def get_characters(self, text: str, start_: int, end_: int, position: int) -> tuple[int, int]:
+        prev_position = position - 1
+        if start_ <= prev_position < end_:
+            c_previous = ord(text[prev_position])
+        else:
+            c_previous = -1
+
+        if start_ <= position < end_:
+            c_next = ord(text[position])
+        else:
+            c_next = -1
+
+        return c_previous, c_next

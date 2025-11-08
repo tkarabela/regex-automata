@@ -57,12 +57,12 @@ class Pattern:
     def fullmatch(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
         end_ = end if end is not None else len(text)
         m = self.match(text, start, end)
-        if m is not None and m.span[-1] != end_:
+        if m is not None and m.end() != end_:
             m = None
         return m
 
     def match(self, text: str, start: int = 0, end: int | None = None) -> Match | None:
-        evaluator = NFAEvaluator(self.nfa, self.flags)
+        evaluator = NFAEvaluator(self, self.flags)
         try:
             return next(evaluator.finditer(text, start, end, search=False))
         except StopIteration:
@@ -75,5 +75,5 @@ class Pattern:
             return None
 
     def finditer(self, text: str, start: int = 0, end: int | None = None) -> Iterator[Match]:
-        evaluator = NFAEvaluator(self.nfa, self.flags)
+        evaluator = NFAEvaluator(self, self.flags)
         yield from evaluator.finditer(text, start, end)

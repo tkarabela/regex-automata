@@ -1,7 +1,6 @@
 import pytest
 
 import regex_automata
-from regex_automata.regex.match import Match
 
 
 @pytest.mark.parametrize("pattern,s,result",
@@ -93,55 +92,67 @@ def test_digits():
 def test_match():
     p1 = regex_automata.compile(r"a{3}")
     m = p1.match("aaa")
-    assert m is not None and m.span == (0, 3)
+    assert m is not None and m.span() == (0, 3)
     m = p1.match("baaa")
     assert m is None
     m = p1.match("baaa", start=1)
-    assert m is not None and m.span == (1, 4)
+    assert m is not None and m.span() == (1, 4)
 
     p2 = regex_automata.compile(r"a+")
     m = p2.match("aaaaaaaaaaaaaaaaaa", start=5, end=7)
-    assert m is not None and m.span == (5, 7)
+    assert m is not None and m.span() == (5, 7)
 
 
 def test_search():
-    p1 = regex_automata.compile(r"[a-z0-9]+@[a-z0-9]+\.[a-z0-9]+")
+    p1 = regex_automata.compile(r"([a-z0-9]+)@([a-z0-9]+\.[a-z0-9]+)")
+
     m = p1.search("text abc@def.com xyz@123.com")
-    assert m is not None and m.match == "abc@def.com"
+    assert m is not None
+    assert m.group() == "abc@def.com"
+    assert m.groupdict() == {0: "abc@def.com", 1: "abc", 2: "def.com"}
+
     m = p1.search("text abc@def.com xyz@123.com", start=10)
-    assert m is not None and m.match == "xyz@123.com"
+    assert m is not None
+    assert m.group() == "xyz@123.com"
+    assert m.groupdict() == {0: "xyz@123.com", 1: "xyz", 2: "123.com"}
 
 
 def test_overlapping_search():
     p1 = regex_automata.compile(r"aa")
-    assert list(p1.finditer("aaaaaaa")) == [
-        Match((0, 2), "aa"),
-        Match((2, 4), "aa"),
-        Match((4, 6), "aa"),
-    ]
+    matches = list(p1.finditer("aaaaaaa"))
+    assert len(matches) == 3
+    assert matches[0].span() == (0, 2)
+    assert matches[1].span() == (2, 4)
+    assert matches[2].span() == (4, 6)
 
 
 def test_boundary_assertion():
     m = regex_automata.search(r"abc$", "foo abc")
-    assert m is not None and m.match == "abc"
+    assert m is not None and m.group() == "abc"
     m = regex_automata.search(r"abc$", "abcdef")
     assert m is None
     m = regex_automata.search(r"abc$", "abc\ndef", regex_automata.MULTILINE)
-    assert m is not None and m.match == "abc"
+    assert m is not None and m.group() == "abc"
 
     m = regex_automata.search(r"^abc", "abc foo")
-    assert m is not None and m.match == "abc"
+    assert m is not None and m.group() == "abc"
     m = regex_automata.search(r"^abc", "foo abc")
     assert m is None
     m = regex_automata.search(r"^abc", "foo\nabc", regex_automata.MULTILINE)
-    assert m is not None and m.match == "abc"
+    assert m is not None and m.group() == "abc"
 
     m = regex_automata.search(r"\bm", "moon")
-    assert m is not None and m.span == (0, 1)
+    assert m is not None and m.span() == (0, 1)
     m = regex_automata.search(r"oon\b", "moon")
-    assert m is not None and m.span == (1, 4)
+    assert m is not None and m.span() == (1, 4)
 
     m = regex_automata.search(r"\Bon", "at noon")
-    assert m is not None and m.span == (5, 7)
+    assert m is not None and m.span() == (5, 7)
     m = regex_automata.search(r"\Bno", "at noon")
     assert m is None
+
+
+def test_groups():
+    m = regex_automata.match(r"((foo|bar)*)baz", "barbarfoobaz")
+    assert m is not None
+    assert m.groupdict() == {0: 'barbarfoobaz', 1: 'foo', 2: 'barbarfoo'}

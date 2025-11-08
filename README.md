@@ -13,7 +13,7 @@ import regex_automata
 
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
-pattern.fullmatch("foofoobar")                      # regex_automata.Match(span=(0, 9), match='foofoobar')
+pattern.fullmatch("foofoobar")                      # regex_automata.Match
 pattern.fullmatch("foo")                            # None
 
 pattern.ast                                         # regex_automata.parser.ast.AstNode
@@ -44,14 +44,14 @@ Finite automaton accepting `(foo)*bar|baz`:
 
 - Library
   - `match()`, `fullmatch()`, `search()` and `finditer()` methods
-  - `Match` object containing span and matched text (but no groups)
+  - `Match` object containing span, matched text and groups
   - flags `DOTALL`, `IGNORECASE` and `MULTILINE`
 
 - Syntax
   - character sets: `.`, `[...]` (special sequences such as `\w` are supported, but not inside square brackets)
   - repetition: `*`, `?`, `+`, `{n,k}`
   - boundary assertions: `^`, `$`, `\b`, `\B`, `\A`, `\Z`
-  - basic groups: `(...)` that behave like `(?:...)` ie. non-capturing
+  - basic groups: `(...)` (named and non-capturing groups are not supported)
 
 ## Implementation overview
 
