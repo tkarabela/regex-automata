@@ -36,7 +36,12 @@ class ASTProcessor:
         return node
 
     def convert_AstIteration(self, node: AstIteration) -> AstNode:
-        return AstIteration(self.convert(node.u))
+        u = self.convert(node.u)
+        match u:
+            case AstEmpty():
+                return u
+            case _:
+                return AstIteration(u)
 
     def convert_AstRepetition(self, node: AstRepetition) -> AstNode:
         # implemented via AST transform
@@ -61,10 +66,24 @@ class ASTProcessor:
         return self.convert(root)
 
     def convert_AstUnion(self, node: AstUnion) -> AstNode:
-        return AstUnion(self.convert(node.u), self.convert(node.v))
+        u = self.convert(node.u)
+        v = self.convert(node.v)
+        match u, v:
+            case AstEmpty(), AstEmpty():
+                return AstEmpty()
+            case _:
+                return AstUnion(u, v)
 
     def convert_AstConcatenation(self, node: AstConcatenation) -> AstNode:
-        return AstConcatenation(self.convert(node.u), self.convert(node.v))
+        u = self.convert(node.u)
+        v = self.convert(node.v)
+        match u, v:
+            case AstEmpty(), w:
+                return w
+            case w, AstEmpty():
+                return w
+            case _:
+                return AstConcatenation(u, v)
 
     def convert_AstBoundaryAssertion(self, node: AstBoundaryAssertion) -> AstNode:
         return node
