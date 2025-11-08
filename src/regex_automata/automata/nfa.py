@@ -103,7 +103,8 @@ class NFA:
             for v in closure:
                 transitions_u = transitions.setdefault(u, {})
                 for p, ws in self.transitions.get(v, {}).items():
-                    transitions_u.setdefault(p, set()).update(ws)
+                    if not p.is_trivial_epsilon:
+                        transitions_u.setdefault(p, set()).update(ws)
 
                 if v in self.final_states:
                     final_states.add(u)
