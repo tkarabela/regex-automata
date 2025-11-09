@@ -97,7 +97,7 @@ class Tokenizer:
                     match self.peek(k=2):
                         case None:
                             self.error("unfinished escape sequence")
-                        case "A" | "Z" | "b" | "B":
+                        case "A" | "Z" | "z" | "b" | "B":
                             yield self.read_BoundaryAssertion(reader)
                         case _:
                             yield self.read_CharacterSet(reader)
@@ -199,6 +199,14 @@ class Tokenizer:
                     case "S":
                         reader.read("S")
                         return CharacterSet(reader.span, reader.text, set=NONWHITESPACE_RANGESET)
+                    case "a" | "b" | "f" | "n" | "r" | "t" | "v":
+                        c = reader.read()
+                        s = {
+                            "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+                        }[c]
+                        return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(s))]))
+                    case "N" | "u" | "U" | "x":
+                        self.error(f"unsupported escape sequence: {self.peek()}", unsupported=True)
                     case _:
                         c = reader.read()
                         return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(c))]))
@@ -243,6 +251,9 @@ class Tokenizer:
                     rs |= {ord("-")}
                     running = False
                 case (c1, "-", c2):
+                    if c1 == "\\":
+                        self.error(f"escape sequences are not supported inside [...]", unsupported=True)
+
                     match c2:
                         case "]":
                             reader.read(c1)
@@ -260,6 +271,8 @@ class Tokenizer:
                             rs |= RangeSet(ranges=[(start, end+1)])
                 case _:
                     c = reader.read()
+                    if c == "\\":
+                        self.error(f"escape sequences are not supported inside [...]", unsupported=True)
                     rs |= {ord(self.normalize_case(c))}
 
         return CharacterSet(reader.span, reader.text, set=RangeSet(ranges=rs.ranges, complement=complement))
