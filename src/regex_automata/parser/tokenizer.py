@@ -333,7 +333,7 @@ class Tokenizer:
                     self.flags |= flag
             case ":":
                 reader.read(":")
-                yield LPar(reader.span, reader.text, number=self.assign_group_number(), non_capturing=True)
+                yield LPar(reader.span, reader.text, number=-1, non_capturing=True)
             case "P":
                 reader.read("P")
                 match self.peek():

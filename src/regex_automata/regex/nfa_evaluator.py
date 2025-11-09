@@ -149,7 +149,9 @@ class NFAEvaluator:
                     buckets.pop(start)
                     continue
 
-                while True:
+                loop = False
+                candidate_final_head: Head | None = None
+                while queue:
                     # do epsilon transitions
                     logger.info(f"\tprocessing bucket {start=}")
                     logger.info("\t\tepsilon transitions")
@@ -165,50 +167,51 @@ class NFAEvaluator:
 
                     # do epsilon transitions
                     logger.info("\t\tepsilon transitions")
-                    reentered_final = self.apply_epsilon_transitions(queue, text, start_, end_)
+                    self.apply_epsilon_transitions(queue, text, start_, end_)
                     for head in queue:
                         logger.info(f"\t\t\t-> {head}")
 
-                    if not entered_final:
-                        break
+                    if entered_final:
+                        loop = True  # have a candidate match; find the longest match with the same start
+                    elif not loop:
+                        break  # no candidate match after first iteration, let other starts positions iterate as well
 
-                    if left_final and not reentered_final:
-                        final_head = max(final_heads)
-                        yield Match(
-                            re=self.pattern,
-                            pos=start_,
-                            endpos=end_,
-                            match=original_text[final_head.start:final_head.position],
-                            groupspandict=final_head.get_groupspandict(),
-                        )
-                        logger.info(f">>>> found {final_head=} <<<<")
+                    if left_final:
+                        candidate_final_head = max(final_heads)
+                        logger.info(f">>>> found {candidate_final_head=} <<<<")
 
-                        for start, queue in buckets.items():
-                            if start < final_head.position:
-                                logger.info(f"\tclearing bucket {start=} (less than {final_head.position=})")
-                                queue.clear()
-                                last_match_position = final_head.position
+                    logger.info("\tlooping due to a candidate match")
 
-                        break
-                    else:
-                        logger.info("\tlooping due to entered_final")
+                if candidate_final_head:
+                    final_head = candidate_final_head
+                    yield Match(
+                        re=self.pattern,
+                        pos=start_,
+                        endpos=end_,
+                        match=original_text[final_head.start:final_head.position],
+                        groupspandict=final_head.get_groupspandict(),
+                    )
+                    logger.info(f">>>> found {final_head=} <<<<")
+
+                    for start, queue in buckets.items():
+                        if start < final_head.position:
+                            logger.info(f"\tclearing bucket {start=} (less than {final_head.position=})")
+                            queue.clear()
+                            last_match_position = final_head.position
 
         logger.info("all done")
 
     def init_head(self, position: int) -> Head:
         return Head(self.nfa.initial_state, position, position)
 
-    def apply_epsilon_transitions(self, queue: list[Head], text: str, start_: int, end_: int) -> bool:
+    def apply_epsilon_transitions(self, queue: list[Head], text: str, start_: int, end_: int) -> None:
         next_heads = set()
         while queue:
             head = queue.pop()
             # logger.info(f"\t\tprocessing {head=}")
             c_previous, c_next = self.get_characters(text, start_, end_, head.position)
             next_heads.update(self._apply_epsilon_transitions(head, c_previous, c_next))
-        entered_final = any(h.state == self.final_state for h in next_heads)
         queue.extend(sorted(next_heads))
-        logger.info(f"\t\t\t-> {entered_final=}")
-        return entered_final
 
     def _apply_epsilon_transitions(self, head: Head, c_previous: int, c_next: int) -> Set[Head]:
         closure = {head}

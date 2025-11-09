@@ -163,6 +163,17 @@ def test_groups():
     assert m.group(1) == 'barbarfoo'
     assert m.group(2) == 'foo'
 
+    m = regex_automata.fullmatch(r"(\d+(?:\.\d+)?)(h|m|s|ms)", "0s")
+    assert m is not None
+    assert m.group(1) == "0"
+    assert m.group(2) == "s"
+
+    m = regex_automata.fullmatch(r"(\d{2,}):(\d{2}):(\d{2}(?:\.\d+)?)", '00:00:01.375')
+    assert m is not None
+    assert m.group(1) == "00"
+    assert m.group(2) == "00"
+    assert m.group(3) == "01.375"
+
 
 def test_findall():
     assert regex_automata.findall(r'\bf[a-z]*', 'which foot or hand fell fastest') == ['foot', 'fell', 'fastest']
