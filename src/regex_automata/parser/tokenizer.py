@@ -47,6 +47,7 @@ class Tokenizer:
         self.flags = flags
         self.pos = -1
         self.symbolic_group_names: set[str] = set()
+        self.group_number = 1
 
     def normalize_case(self, s: str) -> str:
         if self.flags & PatternFlag.IGNORECASE:
@@ -109,7 +110,7 @@ class Tokenizer:
 
     def read_LPar(self, reader: Reader) -> LPar:
         reader.read("(")
-        return LPar(reader.span, reader.text)
+        return LPar(reader.span, reader.text, number=self.assign_group_number())
 
     def read_RPar(self, reader: Reader) -> RPar:
         reader.read(")")
@@ -332,7 +333,7 @@ class Tokenizer:
                     self.flags |= flag
             case ":":
                 reader.read(":")
-                yield LPar(reader.span, reader.text, non_capturing=True)
+                yield LPar(reader.span, reader.text, number=self.assign_group_number(), non_capturing=True)
             case "P":
                 reader.read("P")
                 match self.peek():
@@ -347,7 +348,7 @@ class Tokenizer:
                         if name in self.symbolic_group_names:
                             self.error(f"redefined group name {name}")
                         self.symbolic_group_names.add(name)
-                        yield LPar(reader.span, reader.text, symbolic_name=name)
+                        yield LPar(reader.span, reader.text, number=self.assign_group_number(), symbolic_name=name)
                     case None:
                         self.error("unclosed symbolic pattern sequence")
                     case c:
@@ -362,3 +363,8 @@ class Tokenizer:
                     reader.read(")")
                 else:
                     self.error("unclosed comment sequence")
+
+    def assign_group_number(self) -> int:
+        i = self.group_number
+        self.group_number += 1
+        return i

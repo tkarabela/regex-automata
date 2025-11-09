@@ -160,8 +160,8 @@ def test_groups():
     m = regex_automata.match(r"((foo|bar)*)baz", "barbarfoobaz")
     assert m is not None
     assert m.group(0) == 'barbarfoobaz'
-    assert m.group(1) == 'foo'
-    assert m.group(2) == 'barbarfoo'
+    assert m.group(1) == 'barbarfoo'
+    assert m.group(2) == 'foo'
 
 
 def test_findall():

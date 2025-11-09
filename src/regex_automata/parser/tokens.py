@@ -23,6 +23,7 @@ class Repetition(Token):
 
 @dataclass
 class LPar(Token):
+    number: int
     non_capturing: bool = False
     symbolic_name: str | None = None
 
