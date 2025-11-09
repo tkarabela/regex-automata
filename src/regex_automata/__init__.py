@@ -6,7 +6,7 @@ from .regex.match import Match as Match
 from .regex.pattern import Pattern as Pattern
 from .common import root_logger as root_logger
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def fullmatch(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> Match | None:
