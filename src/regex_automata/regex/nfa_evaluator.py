@@ -185,7 +185,7 @@ class NFAEvaluator:
             else:
                 print(f"\n{position=}, end of input")
 
-            if position >= last_match_position and (char_no == 0 or (search and position < end_)):
+            if position >= last_match_position and (char_no == 0 or (search and position <= end_)):
                 queue = UniquePriorityQueue(self.init_head(position))
                 print(f"\tadding bucket {queue=}")
                 buckets[position] = queue
