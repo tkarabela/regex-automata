@@ -14,12 +14,12 @@ Diagrams of abstract syntax tree and the automaton are also available.
 ## Usage
 
 ```python
-import regex_automata
+import regex_automata as re
 import logging
 
 logging.basicConfig(level=logging.INFO)             # show verbose output
 
-pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
+pattern = re.compile(r"(foo)*bar|baz")              # regex_automata.Pattern
 
 m = pattern.fullmatch("foofoobar")                  # regex_automata.Match
 pattern.fullmatch("foo")                            # None
@@ -32,7 +32,7 @@ pattern.render_ast("regex_ast.svg")
 pattern.render_ast("regex_ast_raw.svg", raw=True)
 pattern.render_nfa("regex_nfa.svg")
 
-pattern2 = regex_automata.compile(r"[a-z_-][a-z0-9_-]*", regex_automata.IGNORECASE)
+pattern2 = re.compile(r"[a-z_-][a-z0-9_-]*", re.IGNORECASE)
 pattern2.tokens
 # [CharacterSet(span=(0, 7), text='[a-z_-]', set=RangeSet(((45, 46), (95, 96), (97, 123)))),
 #  CharacterSet(span=(7, 17), text='[a-z0-9_-]', set=RangeSet(((45, 46), (48, 58), (95, 96), (97, 123)))),
