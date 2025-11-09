@@ -17,6 +17,7 @@ class Pattern:
         try:
             tokenizer = Tokenizer(pattern, flags)
             self.tokens = list(tokenizer.get_tokens())
+            flags = tokenizer.flags
         except TokenizerError as e:
             msg = "\n".join([
                 str(e),

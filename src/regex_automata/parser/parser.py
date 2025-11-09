@@ -225,7 +225,7 @@ class Parser:
         H  -> lpar E rpar
         """
         # lpar
-        _ = self.read(LPar)
+        lpar = self.read(LPar)
 
         # E
         match self.peek():
@@ -239,7 +239,10 @@ class Parser:
         # rpar
         _ = self.read(RPar)
 
-        return self.make_group(E)
+        if lpar.non_capturing:
+            return E
+        else:
+            return self.make_group(E)
 
     @rule
     def p11(self) -> AstNode:

@@ -174,3 +174,18 @@ def test_split():
     # assert regex_automata.split(r'\W*', '...words...') == ['', '', 'w', 'o', 'r', 'd', 's', '', '']
     # assert regex_automata.split(r'(\W*)', '...words...') == ['', '...', '', '', 'w', '', 'o', '', 'r', '', 'd', '', 's', '...', '', '', '']
     assert regex_automata.split(r"([a-z]+)|([0-9]+)", "abc.132.def") == ['', 'abc', None, '.', None, '132', '.', 'def', None, '']
+
+
+def test_inline_flags():
+    m = regex_automata.search(r"ABC", "abcABC")
+    assert m is not None and m.group() == "ABC"
+    m = regex_automata.search(r"abc", "abcABC")
+    assert m is not None and m.group() == "abc"
+    m = regex_automata.search(r"ABC", "abcABC", PatternFlag.IGNORECASE)
+    assert m is not None and m.group() == "abc"
+    m = regex_automata.search(r"abc", "abcABC", PatternFlag.IGNORECASE)
+    assert m is not None and m.group() == "abc"
+    m = regex_automata.search(r"(?i)abc", "abcABC")
+    assert m is not None and m.group() == "abc"
+    m = regex_automata.search(r"(?i)ABC", "abcABC")
+    assert m is not None and m.group() == "abc"

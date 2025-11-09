@@ -3,7 +3,7 @@ from typing import Iterator, NoReturn
 from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion, BoundaryAssertionSemantic
 from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET, DIGIT_RANGESET, NONDIGIT_RANGESET, \
     WHITESPACE_RANGESET, NONWHITESPACE_RANGESET
-from ..errors import TokenizerError
+from ..errors import TokenizerError, UnsupportedSyntaxError
 from ..regex.flags import PatternFlag
 
 
@@ -64,11 +64,14 @@ class Tokenizer:
         i = self.pos + k
         return self.text[i] if i < len(self.text) else None
 
-    def error(self, description: str | None = None) -> NoReturn:
+    def error(self, description: str | None = None, unsupported: bool = False) -> NoReturn:
         msg = f"error at position {self.pos}"
         if description:
             msg += f": {description}"
-        raise TokenizerError(msg, self.pos)
+        if unsupported:
+            raise UnsupportedSyntaxError(msg, self.pos)
+        else:
+            raise TokenizerError(msg, self.pos)
 
     def get_tokens(self) -> Iterator[Token]:
         while c := self.peek():
@@ -76,7 +79,10 @@ class Tokenizer:
 
             match c:
                 case "(":
-                    yield self.read_LPar(reader)
+                    if self.peek(2) == "?":
+                        yield from self.read_special_parenthesis_form(reader)
+                    else:
+                        yield self.read_LPar(reader)
                 case ")":
                     yield self.read_RPar(reader)
                 case "*" | "?" | "+" | "{":
@@ -107,12 +113,19 @@ class Tokenizer:
         return RPar(reader.span, reader.text)
 
     def read_Repetition(self, reader: Reader) -> Repetition:
-        match reader.read():
+        c: str | None
+        match (c := reader.read()):
             case "*":
+                if (c2 := self.peek()) in ("?", "+"):
+                    self.error(f"{c}{c2} quantifier is not supported", unsupported=True)
                 return Repetition(reader.span, reader.text, 0, None)
             case "?":
+                if (c2 := self.peek()) in ("?", "+"):
+                    self.error(f"{c}{c2} quantifier is not supported", unsupported=True)
                 return Repetition(reader.span, reader.text, 0, 1)
             case "+":
+                if (c2 := self.peek()) in ("?", "+"):
+                    self.error(f"{c}{c2} quantifier is not supported", unsupported=True)
                 return Repetition(reader.span, reader.text, 1, None)
             case "{":
                 read_lower_limit = False
@@ -148,6 +161,9 @@ class Tokenizer:
                     self.error("bad repetition definition")
 
                 reader.read("}")
+
+                if (c2 := self.peek()) in ("?", "+"):
+                    self.error(f"{{...}}{c2} quantifier is not supported", unsupported=True)
 
                 return Repetition(reader.span, reader.text, rmin, rmax)
 
@@ -282,3 +298,42 @@ class Tokenizer:
                 return BoundaryAssertion(reader.span, reader.text, BoundaryAssertionSemantic.NONWORD_BOUNDARY)
             case _:
                 self.error()
+
+    def read_special_parenthesis_form(self, reader: Reader) -> Iterator[Token]:
+        """Method for handling (?...)"""
+        reader.read("(")
+        reader.read("?")
+        match (c := self.peek()):
+            case "a" | "i" | "L" | "m" | "s" | "u" | "x":
+                while (c := self.read()) != ")":
+                    flag = {
+                        "i": PatternFlag.IGNORECASE,
+                        "m": PatternFlag.MULTILINE,
+                        "s": PatternFlag.DOTALL,
+                    }.get(c)
+                    if flag is None:
+                        self.error(f"{c!r} is not a supported inline flag", unsupported=True)
+                    self.flags |= flag
+            case ":":
+                reader.read(":")
+                yield LPar(reader.span, reader.text, non_capturing=True)
+            case "P":
+                reader.read("P")
+                match self.peek():
+                    case "<":
+                        # TODO implement this
+                        self.error("(?P<...>...) syntax is not supported", unsupported=True)
+                    case None:
+                        self.error("unclosed symbolic pattern sequence")
+                    case c:
+                        self.error(f"(?P{c}...) syntax is not supported", unsupported=True)
+            case ">" | "=" | "!" | "<" | "(":
+                self.error(f"(?{c}...) syntax is not supported", unsupported=True)
+            case "#":
+                reader.read("#")
+                while self.peek() not in (")", None):
+                    reader.read()
+                if self.peek() == ")":
+                    reader.read(")")
+                else:
+                    self.error("unclosed comment sequence")
