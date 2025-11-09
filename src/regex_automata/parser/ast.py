@@ -111,9 +111,13 @@ class AstEmpty(AstNode):
 class AstGroup(AstNode):
     number: int
     u: AstNode
+    name: str | None = None
 
     def get_label(self) -> str:
-        return f"group {self.number}"
+        if self.name is not None:
+            return f"group {self.number} ({self.name!r})"
+        else:
+            return f"group {self.number}"
 
     def iter_children(self) -> Iterator["AstNode"]:
         yield self.u

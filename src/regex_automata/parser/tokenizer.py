@@ -46,6 +46,7 @@ class Tokenizer:
         self.text = text
         self.flags = flags
         self.pos = -1
+        self.symbolic_group_names: set[str] = set()
 
     def normalize_case(self, s: str) -> str:
         if self.flags & PatternFlag.IGNORECASE:
@@ -254,7 +255,7 @@ class Tokenizer:
                     running = False
                 case (c1, "-", c2):
                     if c1 == "\\":
-                        self.error(f"escape sequences are not supported inside [...]", unsupported=True)
+                        self.error("escape sequences are not supported inside [...]", unsupported=True)
 
                     match c2:
                         case "]":
@@ -274,7 +275,7 @@ class Tokenizer:
                 case _:
                     c = reader.read()
                     if c == "\\":
-                        self.error(f"escape sequences are not supported inside [...]", unsupported=True)
+                        self.error("escape sequences are not supported inside [...]", unsupported=True)
                     rs |= {ord(self.normalize_case(c))}
 
         return CharacterSet(reader.span, reader.text, set=RangeSet(ranges=rs.ranges, complement=complement))
@@ -336,8 +337,17 @@ class Tokenizer:
                 reader.read("P")
                 match self.peek():
                     case "<":
-                        # TODO implement this
-                        self.error("(?P<...>...) syntax is not supported", unsupported=True)
+                        reader.read("<")
+                        name_chars = []
+                        while (c2 := reader.read()) != ">":
+                            name_chars.append(c2)
+                        name = "".join(name_chars)
+                        if not name:
+                            self.error("missing group name")
+                        if name in self.symbolic_group_names:
+                            self.error(f"redefined group name {name}")
+                        self.symbolic_group_names.add(name)
+                        yield LPar(reader.span, reader.text, symbolic_name=name)
                     case None:
                         self.error("unclosed symbolic pattern sequence")
                     case c:

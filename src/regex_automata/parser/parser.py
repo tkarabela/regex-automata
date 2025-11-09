@@ -26,6 +26,7 @@ class Parser:
         self.pos = -1
         self.string_pos = -1
         self.group_number = 1
+        self.group_name_to_group_number: dict[str, int] = {}
 
     def read(self, cls: Type[TToken]) -> TToken:
         self.pos += 1
@@ -56,10 +57,12 @@ class Parser:
             self.error("unread input remaining (expected end of input)")
         return root
 
-    def make_group(self, u: AstNode) -> AstGroup:
+    def make_group(self, u: AstNode, name: str | None = None) -> AstGroup:
         i = self.group_number
         self.group_number += 1
-        return AstGroup(i, u)
+        if name is not None:
+            self.group_name_to_group_number[name] = i
+        return AstGroup(i, u, name)
 
     @rule
     def p1(self) -> AstNode:
@@ -242,7 +245,7 @@ class Parser:
         if lpar.non_capturing:
             return E
         else:
-            return self.make_group(E)
+            return self.make_group(E, lpar.symbolic_name)
 
     @rule
     def p11(self) -> AstNode:

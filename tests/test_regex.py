@@ -2,6 +2,7 @@ import pytest
 
 import regex_automata
 from regex_automata import PatternFlag
+from regex_automata.errors import PatternError
 
 
 @pytest.mark.parametrize("pattern,s,result",
@@ -110,12 +111,14 @@ def test_search():
     m = p1.search("text abc@def.com xyz@123.com")
     assert m is not None
     assert m.group() == "abc@def.com"
-    assert m.groupdict() == {0: "abc@def.com", 1: "abc", 2: "def.com"}
+    assert m.group(1) == "abc"
+    assert m.group(2) == "def.com"
 
     m = p1.search("text abc@def.com xyz@123.com", start=10)
     assert m is not None
     assert m.group() == "xyz@123.com"
-    assert m.groupdict() == {0: "xyz@123.com", 1: "xyz", 2: "123.com"}
+    assert m.group(1) == "xyz"
+    assert m.group(2) == "123.com"
 
 
 def test_overlapping_search():
@@ -156,7 +159,9 @@ def test_boundary_assertion():
 def test_groups():
     m = regex_automata.match(r"((foo|bar)*)baz", "barbarfoobaz")
     assert m is not None
-    assert m.groupdict() == {0: 'barbarfoobaz', 1: 'foo', 2: 'barbarfoo'}
+    assert m.group(0) == 'barbarfoobaz'
+    assert m.group(1) == 'foo'
+    assert m.group(2) == 'barbarfoo'
 
 
 def test_findall():
@@ -189,3 +194,16 @@ def test_inline_flags():
     assert m is not None and m.group() == "abc"
     m = regex_automata.search(r"(?i)ABC", "abcABC")
     assert m is not None and m.group() == "abc"
+
+
+def test_named_groups():
+    with pytest.raises(PatternError):
+        regex_automata.compile("(?P<>)")
+    with pytest.raises(PatternError):
+        regex_automata.compile("(?P<xxx>)(?P<xxx>)")
+    m = regex_automata.match(r"(\d+)-(?P<foo>\d+)-(\d+)-(?P<bar>\d+)", "1-2-3-4")
+    assert m is not None
+    assert m.groups() == ('1', '2', '3', '4')
+    assert m.groupdict() == {'foo': '2', 'bar': '4'}
+    assert m.group(2) == "2"
+    assert m.group("foo") == "2"

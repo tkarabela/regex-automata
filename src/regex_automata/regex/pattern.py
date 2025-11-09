@@ -30,6 +30,7 @@ class Pattern:
         try:
             parser = Parser(self.tokens)
             self.raw_ast = parser.parse()
+            self.group_name_to_group_number = parser.group_name_to_group_number
         except ParserError as e:
             msg = "\n".join([
                 str(e),
@@ -81,3 +82,11 @@ class Pattern:
     def finditer(self, text: str, start: int = 0, end: int | None = None) -> Iterator[Match]:
         evaluator = NFAEvaluator(self, self.flags)
         yield from evaluator.finditer(text, start, end)
+
+    @property
+    def groups(self) -> int:
+        return self.max_group_number
+
+    @property
+    def groupindex(self) -> dict[str, int]:
+        return self.group_name_to_group_number
