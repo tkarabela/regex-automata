@@ -4,7 +4,12 @@
 
 # regex-automata
 
-A toy implementation of regular expressions using finite automata.
+A toy implementation of regular expressions using finite automata. Its API is modeled after
+the standard `re` module, so it can be used as a drop-in replacement (not all `re` features
+are supported, though, and it behaves differently in edge cases).
+
+Intended as a white-box implementation, it gives full tracing output for parsing and matching.
+Diagrams of abstract syntax tree and the automaton are also available.
 
 ## Usage
 
@@ -14,7 +19,6 @@ import regex_automata
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
 m = pattern.fullmatch("foofoobar")                  # regex_automata.Match
-m.groupdict()                                       # {0: "foofoobar", 1: "foo"}
 pattern.fullmatch("foo")                            # None
 
 pattern.ast                                         # regex_automata.parser.ast.AstNode
@@ -43,6 +47,13 @@ Finite automaton accepting `"(foo)*bar|baz"` (ie. `pattern.nfa`):
 
 ## Features compared to standard `re` module
 
+`regex-automata` is generally compatible with `re` - features either work as intended or
+fail with `regex_automata.errors.UnsupportedSyntaxError`. In some edge cases, results differ:
+most notably when there are multiple greedy quantifiers next to each other.
+
+`regex-automata` passes 286/305 [`re` pattern tests](https://github.com/python/cpython/blob/main/Lib/test/re_tests.py),
+with additional 98 tests ignored due to testing unsupported features.
+
 - Library
   - `match()`, `fullmatch()`, `search()` and `finditer()` methods
   - `Match` object containing span, matched text and groups
@@ -52,7 +63,17 @@ Finite automaton accepting `"(foo)*bar|baz"` (ie. `pattern.nfa`):
   - character sets: `.`, `[...]` (special sequences such as `\w` are supported, but not inside square brackets)
   - repetition: `*`, `?`, `+`, `{n,k}`
   - boundary assertions: `^`, `$`, `\b`, `\B`, `\A`, `\Z`
-  - basic groups: `(...)` (named and non-capturing groups are not supported)
+  - groups: `(...)`, `(?:...)`, `(?P<name>...)`
+  - inline flags eg. `(?i)`
+  - comments `(?#...)`
+
+- Notable features that are _not_ supported by this library but are in standard `re`:
+  - substitution (`re.sub()`, `re.subn()`)
+  - backreferences (`\1`, `\g<1>` etc.)
+  - lookahead/lookbehind assertions (`(?=...)`, `(?!...)`, `(?<=...)`, `(?<!...)`)
+  - non-greedy and possessive repetition (`*?`, `*+`, etc.)
+  - `bytes` support
+  - `UNICODE` flag, non-ASCII meaning for `\d` etc.
 
 ## Implementation overview
 
