@@ -1,6 +1,7 @@
 import pytest
 
 import regex_automata
+from regex_automata import PatternFlag
 
 
 @pytest.mark.parametrize("pattern,s,result",
@@ -156,3 +157,20 @@ def test_groups():
     m = regex_automata.match(r"((foo|bar)*)baz", "barbarfoobaz")
     assert m is not None
     assert m.groupdict() == {0: 'barbarfoobaz', 1: 'foo', 2: 'barbarfoo'}
+
+
+def test_findall():
+    assert regex_automata.findall(r'\bf[a-z]*', 'which foot or hand fell fastest') == ['foot', 'fell', 'fastest']
+    assert regex_automata.findall(r'(\w+)=(\d+)', 'set width=20 and height=10') == [('width', '20'), ('height', '10')]
+
+
+def test_split():
+    assert regex_automata.split(r'\W+', 'Words, words, words.') == ['Words', 'words', 'words', '']
+    assert regex_automata.split(r'(\W+)', 'Words, words, words.') == ['Words', ', ', 'words', ', ', 'words', '.', '']
+    assert regex_automata.split(r'\W+', 'Words, words, words.', maxsplit=1) == ['Words', 'words, words.']
+    assert regex_automata.split('[a-f]+', '0a3B9', flags=regex_automata.IGNORECASE) == ['0', '3', '9']
+    assert regex_automata.split(r'(\W+)', '...words, words...') == ['', '...', 'words', ', ', 'words', '...', '']
+    assert regex_automata.split(r'\b', 'Words, words, words.') == ['', 'Words', ', ', 'words', ', ', 'words', '.']
+    # assert regex_automata.split(r'\W*', '...words...') == ['', '', 'w', 'o', 'r', 'd', 's', '', '']
+    # assert regex_automata.split(r'(\W*)', '...words...') == ['', '...', '', '', 'w', '', 'o', '', 'r', '', 'd', '', 's', '...', '', '', '']
+    assert regex_automata.split(r"([a-z]+)|([0-9]+)", "abc.132.def") == ['', 'abc', None, '.', None, '132', '.', 'def', None, '']
