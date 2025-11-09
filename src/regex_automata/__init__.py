@@ -1,9 +1,9 @@
 # ruff: noqa: E741
-from typing import Iterator
+from typing import Iterator, Callable
 
 from .regex.flags import PatternFlag as PatternFlag
-from .regex.match import Match
-from .regex.pattern import Pattern
+from .regex.match import Match as Match
+from .regex.pattern import Pattern as Pattern
 
 __version__ = "0.2.0"
 
@@ -39,6 +39,14 @@ def findall(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> li
             case groups:
                 output.append(groups)
     return output
+
+
+def sub(pattern: str, repl: str | Callable[[Match], str], s: str, count: int = 0, flags: PatternFlag = PatternFlag.NOFLAG) -> str:
+    return Pattern(pattern, flags).sub(repl, s, count)
+
+
+def subn(pattern: str, repl: str | Callable[[Match], str], s: str, count: int = 0, flags: PatternFlag = PatternFlag.NOFLAG) -> tuple[str, int]:
+    return Pattern(pattern, flags).subn(repl, s, count)
 
 
 def split(pattern: str, s: str, maxsplit: int = 0, flags: PatternFlag = PatternFlag.NOFLAG) -> list[str | None]:

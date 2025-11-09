@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from .pattern import Pattern
@@ -57,5 +57,57 @@ class Match:
     def string(self) -> str:
         return self.re.pattern
 
+    def expand(self, template: str) -> str:
+        output: list[str] = []
+        last_match_end = 0
+
+        for m in self._get_expand_pattern().finditer(template):
+            output.append(template[last_match_end:m.start()])
+            if m.group("number") is not None:
+                i = int(m._group("number"))
+                value = self._group(i)
+            elif m.group("g_name_or_number") is not None:
+                try:
+                    i = int(m._group("g_name_or_number"))
+                    value = self._group(i)
+                except Exception:
+                    i = m._group("g_name_or_number")
+                    value = self._group(i)
+            elif m._group("escape_sequence") is not None:
+                tmp = m._group("escape_sequence")
+                if tmp[0] in ("x", "u", "U"):
+                    value = chr(int(tmp[1:], base=16))
+                else:
+                    value = {
+                        "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v", "\\": "\\",
+                    }[tmp]
+            else:
+                raise RuntimeError("internal error in expand pattern match")
+
+            if value is None:
+                value = ""
+            output.append(value)
+
+            last_match_end = m.end()
+
+        output.append(template[last_match_end:])
+
+        return "".join(output)
+
     def __repr__(self) -> str:
         return f"<Match span={self.span()!r}, match={self.match!r}>"
+
+    @classmethod
+    def _get_expand_pattern(cls) -> "Pattern":
+        from regex_automata import compile
+        global _EXPAND_PATTERN
+        if _EXPAND_PATTERN is None:
+            _EXPAND_PATTERN = compile(
+                r"\\g<(?P<g_name_or_number>[^>]+)>|"
+                r"\\(?P<number>[0-9]+)|"
+                r"\\(?P<escape_sequence>[abfnrtv]|\\|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})"
+            )
+        return _EXPAND_PATTERN
+
+
+_EXPAND_PATTERN: Optional["Pattern"] = None

@@ -55,7 +55,7 @@ most notably when there are multiple greedy quantifiers next to each other.
 with additional 98 tests ignored due to testing unsupported features.
 
 - Library
-  - `match()`, `fullmatch()`, `search()` and `finditer()` methods
+  - `match()`, `fullmatch()`, `search()`, `finditer()`, `sub()`, `subn()` methods
   - `Match` object containing span, matched text and groups
   - flags `DOTALL`, `IGNORECASE` and `MULTILINE`
 
@@ -68,8 +68,7 @@ with additional 98 tests ignored due to testing unsupported features.
   - comments `(?#...)`
 
 - Notable features that are _not_ supported by this library but are in standard `re`:
-  - substitution (`re.sub()`, `re.subn()`)
-  - backreferences (`\1`, `\g<1>` etc.)
+  - backreferences in patterns (`\1`, `\g<1>` etc.)
   - lookahead/lookbehind assertions (`(?=...)`, `(?!...)`, `(?<=...)`, `(?<!...)`)
   - non-greedy and possessive repetition (`*?`, `*+`, etc.)
   - `bytes` support

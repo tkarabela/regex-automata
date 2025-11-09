@@ -1,7 +1,7 @@
 import pytest
 
 import regex_automata
-from regex_automata import PatternFlag
+from regex_automata import PatternFlag, Match
 from regex_automata.errors import PatternError
 
 
@@ -207,3 +207,44 @@ def test_named_groups():
     assert m.groupdict() == {'foo': '2', 'bar': '4'}
     assert m.group(2) == "2"
     assert m.group("foo") == "2"
+
+
+def test_expand():
+    m = regex_automata.match(r"(\d+)-(?P<foo>\d+)-(\d+)-(?P<bar>\d+)|(?P<nonmatch>xxx)", "1-2-3-4")
+    assert m is not None
+    assert m.expand("abcd") == "abcd"
+    assert m.expand("\\0") == "1-2-3-4"
+    assert m.expand("_\\0_\\1_\\2_\\3_\\4_\\5_") == "_1-2-3-4_1_2_3_4__"
+    assert m.expand("_\\g<0>_\\g<1>_\\g<2>_\\g<3>_\\g<4>_\\g<5>_") == "_1-2-3-4_1_2_3_4__"
+    assert m.expand("_\\g<foo>_\\g<bar>_\\g<nonmatch>_") == "_2_4__"
+
+    s = 'Baked Beans And Spam'
+    m = regex_automata.search(r'\sAND\s', s, regex_automata.IGNORECASE)
+    assert m is not None
+    assert m.expand(" & ") == " & "
+    assert "".join([s[:m.start()], m.expand(" & "), s[m.end():]]) == 'Baked Beans & Spam'
+
+    assert m.expand(r"\\ \n \x00 \u1234") == "\\ \n \x00 \u1234"
+
+
+def test_sub():
+    assert regex_automata.sub(
+        r'def\s+([a-zA-Z_][a-zA-Z_0-9]*)\s*\(\s*\):',
+        r'static PyObject*\npy_\1(void)\n{',
+        'def myfunc():'
+    ) == 'static PyObject*\npy_myfunc(void)\n{'
+
+    def dashrepl(matchobj: Match) -> str:
+        if matchobj.group(0) == '-':
+            return ' '
+        else:
+            return '-'
+
+    assert regex_automata.sub('-{1,2}', dashrepl, 'pro----gram-files') == 'pro--gram files'
+
+    assert regex_automata.sub(r'\sAND\s', ' & ', 'Baked Beans And Spam', flags=regex_automata.IGNORECASE) == 'Baked Beans & Spam'
+
+    def numrepl(m: Match) -> str:
+        return str(int(m._group(0)) + 1)
+    assert regex_automata.subn(r"[0-9]", numrepl, "1234") == ("2345", 4)
+    assert regex_automata.subn(r"[0-9]", numrepl, "1234", count=2) == ("2334", 2)

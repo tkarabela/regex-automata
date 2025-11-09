@@ -1,4 +1,4 @@
-from typing import Iterator
+from typing import Iterator, Callable
 
 from .flags import PatternFlag
 from .match import Match
@@ -82,6 +82,32 @@ class Pattern:
     def finditer(self, text: str, start: int = 0, end: int | None = None) -> Iterator[Match]:
         evaluator = NFAEvaluator(self, self.flags)
         yield from evaluator.finditer(text, start, end)
+
+    def sub(self, repl: str | Callable[[Match], str], s: str, count: int = 0) -> str:
+        return self.subn(repl, s, count)[0]
+
+    def subn(self, repl: str | Callable[[Match], str], s: str, count: int = 0) -> tuple[str, int]:
+        if isinstance(repl, str):
+            def repl_fn(m: Match) -> str:
+                return m.expand(repl)
+        else:
+            repl_fn = repl  # type: ignore[assignment]
+
+        num_replacements = 0
+        output: list[str] = []
+        last_match_end = 0
+
+        for m in self.finditer(s):
+            output.append(s[last_match_end:m.start()])
+            output.append(repl_fn(m))
+            num_replacements += 1
+            last_match_end = m.end()
+            if count > 0 and num_replacements == count:
+                break
+
+        output.append(s[last_match_end:])
+
+        return "".join(output), num_replacements
 
     @property
     def groups(self) -> int:
