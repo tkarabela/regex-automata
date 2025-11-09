@@ -48,7 +48,7 @@ class Tokenizer:
         self.pos = -1
 
     def normalize_case(self, s: str) -> str:
-        if self.flags.IGNORECASE:
+        if self.flags & PatternFlag.IGNORECASE:
             return s.lower()
         else:
             return s
