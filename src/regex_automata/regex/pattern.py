@@ -83,6 +83,18 @@ class Pattern:
         evaluator = NFAEvaluator(self, self.flags)
         yield from evaluator.finditer(text, start, end)
 
+    def findall(self, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> list[str | None] | list[tuple[str | None, ...]]:
+        output = []
+        for m in self.finditer(s, flags):
+            match m.groups():
+                case ():
+                    output.append(m.group(0))
+                case (g, ):
+                    output.append(g)
+                case groups:
+                    output.append(groups)
+        return output
+
     def sub(self, repl: str | Callable[[Match], str], s: str, count: int = 0) -> str:
         return self.subn(repl, s, count)[0]
 
@@ -108,6 +120,23 @@ class Pattern:
         output.append(s[last_match_end:])
 
         return "".join(output), num_replacements
+
+    def split(self, s: str, maxsplit: int = 0, flags: PatternFlag = PatternFlag.NOFLAG) -> list[str | None]:
+        numsplit = 0
+        output: list[str | None] = []
+        last_match_end = 0
+
+        for m in self.finditer(s, flags):
+            output.append(s[last_match_end:m.start()])
+            output.extend(m.groups())
+            numsplit += 1
+            last_match_end = m.end()
+            if maxsplit > 0 and numsplit == maxsplit:
+                break
+
+        output.append(s[last_match_end:])
+
+        return output
 
     @property
     def groups(self) -> int:
