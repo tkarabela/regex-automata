@@ -4,8 +4,10 @@ from typing import Type, TypeVar, NoReturn, ParamSpec, Callable
 from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion
 from .ast import AstNode, AstUnion, AstRepetition, AstCharacterSet, AstConcatenation, AstEmpty, AstBoundaryAssertion, \
     AstGroup
+from ..common import root_logger
 from ..errors import ParserError
 
+logger = root_logger.getChild("parser")
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -15,7 +17,7 @@ TToken = TypeVar("TToken", bound=Token)
 def rule(f: Callable[P, T]) -> Callable[P, T]:
     @functools.wraps(f)
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        print(f"using rule {f.__name__:3} :", str(f.__doc__).strip())
+        logger.info(f"using rule {f.__name__:3} : {str(f.__doc__).strip()}")
         return f(*args, **kwargs)
     return wrapper
 
@@ -37,7 +39,7 @@ class Parser:
         if not isinstance(t, cls):
             self.error(f"expected {cls.__name__}, read {t.__class__.__name__}")
         else:
-            print("reading", t)
+            logger.info("reading %r", t)
             return t
 
     def peek(self) -> Token | None:

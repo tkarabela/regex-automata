@@ -7,8 +7,12 @@ from regex_automata.regex.flags import PatternFlag
 from regex_automata.regex.match import Match
 from typing import TYPE_CHECKING
 
+from ..common import root_logger
+
 if TYPE_CHECKING:
     from .pattern import Pattern
+
+logger = root_logger.getChild("evaluator")
 
 T = TypeVar("T")
 
@@ -181,34 +185,38 @@ class NFAEvaluator:
 
         for char_no, position in enumerate(range(start_, end_+1)):
             if position < end_:
-                print(f"\n{position=}, about to read {text[position]!r}")
+                logger.info(f"{position=}, about to read {text[position]!r}")
             else:
-                print(f"\n{position=}, end of input")
+                logger.info(f"{position=}, end of input")
 
             if position >= last_match_position and (char_no == 0 or (search and position <= end_)):
                 queue = UniquePriorityQueue(self.init_head(position))
-                print(f"\tadding bucket {queue=}")
+                logger.info(f"\tadding bucket {queue=}")
                 buckets[position] = queue
 
             for start, queue in list(buckets.items()):
+                if not queue:
+                    logger.info(f"\tprocessing bucket {start=}... empty, skipping")
+                    continue
+
                 while True:
                     # do epsilon transitions
-                    print(f"\tprocessing bucket {start=}, epsilon transitions")
+                    logger.info(f"\tprocessing bucket {start=}, epsilon transitions")
                     self.apply_epsilon_transitions(queue, text, start_, end_)
                     for head in sorted(queue):
-                        print(f"\t\t-> {head}")
+                        logger.info(f"\t\t-> {head}")
 
                     # do character transitions
-                    print(f"\tprocessing bucket {start=}, character transitions")
+                    logger.info(f"\tprocessing bucket {start=}, character transitions")
                     entered_final, left_final, final_heads = self.apply_character_transitions(queue, text, start_, end_)
                     for head in sorted(queue):
-                        print(f"\t\t-> {head}")
+                        logger.info(f"\t\t-> {head}")
 
                     # do epsilon transitions
-                    print(f"\tprocessing bucket {start=}, epsilon transitions")
+                    logger.info(f"\tprocessing bucket {start=}, epsilon transitions")
                     reentered_final = self.apply_epsilon_transitions(queue, text, start_, end_)
                     for head in sorted(queue):
-                        print(f"\t\t-> {head}")
+                        logger.info(f"\t\t-> {head}")
 
                     if not entered_final:
                         break
@@ -222,20 +230,20 @@ class NFAEvaluator:
                             match=original_text[final_head.start:final_head.position],
                             groupspandict=final_head.get_groupspandict(),
                         )
-                        print(f">>>> found {final_head=} <<<<")
+                        logger.info(f">>>> found {final_head=} <<<<")
 
                         for start, queue in list(buckets.items()):
                             if start < final_head.position:
-                                print(f"\tclearing bucket {start=} (less than {final_head.position=})")
+                                logger.info(f"\tclearing bucket {start=} (less than {final_head.position=})")
                                 queue.clear()
                                 buckets.pop(start)
                                 last_match_position = final_head.position
 
                         break
                     else:
-                        print("\tlooping due to entered_final")
+                        logger.info("\tlooping due to entered_final")
 
-        print("all done")
+        logger.info("all done")
 
     def init_head(self, position: int) -> Head:
         return Head(self.nfa.initial_state, position, position)
@@ -244,12 +252,12 @@ class NFAEvaluator:
         next_heads = set()
         while queue:
             head = queue.pop()
-            # print(f"\t\tprocessing {head=}")
+            # logger.info(f"\t\tprocessing {head=}")
             c_previous, c_next = self.get_characters(text, start_, end_, head.position)
             next_heads.update(self._apply_epsilon_transitions(head, c_previous, c_next))
         entered_final = any(h.state == self.final_state for h in next_heads)
         queue.update(next_heads)
-        print(f"\t\t-> {entered_final=}")
+        logger.info(f"\t\t-> {entered_final=}")
         return entered_final
 
     def _apply_epsilon_transitions(self, head: Head, c_previous: int, c_next: int) -> Set[Head]:
@@ -272,7 +280,7 @@ class NFAEvaluator:
         entered_final = False
         while queue:
             head = queue.pop()
-            # print(f"\t\tprocessing {head=}")
+            # logger.info(f"\t\tprocessing {head=}")
             if head.state == self.final_state:
                 entered_final = True
                 final_heads.add(head)
@@ -281,7 +289,7 @@ class NFAEvaluator:
                 next_heads.update(self._apply_character_transitions(head, c_previous, c_next))
         queue.update(next_heads)
         left_final = entered_final and all(h.state != self.final_state for h in queue)
-        print(f"\t\t-> {entered_final=}, {left_final=}, {final_heads=}")
+        logger.info(f"\t\t-> {entered_final=}, {left_final=}, {final_heads=}")
         return entered_final, left_final, final_heads
 
     def _apply_character_transitions(self, head: Head, c_previous: int, c_next: int) -> Set[Head]:

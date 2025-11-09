@@ -15,6 +15,9 @@ Diagrams of abstract syntax tree and the automaton are also available.
 
 ```python
 import regex_automata
+import logging
+
+logging.basicConfig(level=logging.INFO)             # show verbose output
 
 pattern = regex_automata.compile(r"(foo)*bar|baz")  # regex_automata.Pattern
 
