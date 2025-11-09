@@ -152,19 +152,19 @@ class NFAEvaluator:
                 while True:
                     # do epsilon transitions
                     logger.info(f"\tprocessing bucket {start=}")
-                    logger.info(f"\t\tepsilon transitions")
+                    logger.info("\t\tepsilon transitions")
                     self.apply_epsilon_transitions(queue, text, start_, end_)
                     for head in queue:
                         logger.info(f"\t\t\t-> {head}")
 
                     # do character transitions
-                    logger.info(f"\t\tcharacter transitions")
+                    logger.info("\t\tcharacter transitions")
                     entered_final, left_final, final_heads = self.apply_character_transitions(queue, text, start_, end_)
                     for head in queue:
                         logger.info(f"\t\t\t-> {head}")
 
                     # do epsilon transitions
-                    logger.info(f"\t\tepsilon transitions")
+                    logger.info("\t\tepsilon transitions")
                     reentered_final = self.apply_epsilon_transitions(queue, text, start_, end_)
                     for head in queue:
                         logger.info(f"\t\t\t-> {head}")

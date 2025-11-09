@@ -4,7 +4,7 @@ from typing import Iterator, Callable
 from .regex.flags import PatternFlag as PatternFlag
 from .regex.match import Match as Match
 from .regex.pattern import Pattern as Pattern
-from .common import root_logger as logger
+from .common import root_logger as root_logger
 
 __version__ = "0.2.0"
 
