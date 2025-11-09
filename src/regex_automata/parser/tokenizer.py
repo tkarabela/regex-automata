@@ -99,6 +99,8 @@ class Tokenizer:
                             self.error("unfinished escape sequence")
                         case "A" | "Z" | "z" | "b" | "B":
                             yield self.read_BoundaryAssertion(reader)
+                        case "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9":
+                            self.error("backreferences are not supported", unsupported=True)
                         case _:
                             yield self.read_CharacterSet(reader)
                 case "." | "[" | _:
