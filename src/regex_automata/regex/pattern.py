@@ -40,6 +40,9 @@ class Pattern:
 
         try:
             self.ast = ASTProcessor(self.raw_ast).get_processed_ast()
+            max_group_number = ASTProcessor.get_max_group_number(self.ast)
+            assert max_group_number is not None
+            self.max_group_number = max_group_number
         except Exception as e:
             raise PatternError("AST processing failed") from e
 

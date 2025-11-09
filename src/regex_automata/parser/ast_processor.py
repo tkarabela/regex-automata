@@ -32,6 +32,21 @@ class ASTProcessor:
             case _:
                 return node
 
+    @classmethod
+    def get_max_group_number(cls, node: AstNode) -> int | None:
+        values = []
+        for u in node.iter_children():
+            value = cls.get_max_group_number(u)
+            if value is not None:
+                values.append(value)
+        if isinstance(node, AstGroup):
+            values.append(node.number)
+
+        if not values:
+            return None
+        else:
+            return max(values)
+
     def convert_AstEmpty(self, node: AstEmpty) -> AstNode:
         return node
 

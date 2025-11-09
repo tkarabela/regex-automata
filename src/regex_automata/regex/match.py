@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .pattern import Pattern
@@ -13,7 +13,7 @@ class Match:
     match: str
     groupspandict: dict[int, tuple[int, int]]
 
-    def group(self, *indices: int) -> (str | None) | tuple[str | None, ...]:
+    def group(self, *indices: int) -> Any | tuple[Any, ...]:
         match len(indices):
             case 0:
                 return self._group(0)
@@ -22,18 +22,23 @@ class Match:
             case _:
                 return tuple(map(self._group, indices))
 
-    def _group(self, i: int) -> str | None:
+    def _group(self, i: int, default: Any = None) -> Any:
         start, end = self.span(i)
         if start == -1:
-            return None
+            return default
         else:
             match_start = self.start()
             return self.match[start - match_start : end - match_start]
 
-    def groupdict(self) -> dict[int, str | None]:
-        return {i: self._group(i) for i in self.groupspandict}
+    def groups(self, default: Any = None) -> tuple[Any, ...]:
+        return tuple(self._group(i, default) for i in range(1, self.re.max_group_number+1))
+
+    def groupdict(self, default: Any = None) -> dict[int, Any]:
+        return {i: self._group(i, default) for i in self.groupspandict}
 
     def span(self, i: int = 0) -> tuple[int, int]:
+        if i < 0 or i > self.re.max_group_number:
+            raise IndexError(f"No group with index {i}")
         return self.groupspandict.get(i, (-1, -1))
 
     def start(self, i: int = 0) -> int:
@@ -42,7 +47,7 @@ class Match:
     def end(self, i: int = 0) -> int:
         return self.span(i)[1]
 
-    def __getitem__(self, i: int) -> str | None:
+    def __getitem__(self, i: int) -> Any:
         return self._group(i)
 
     @property
