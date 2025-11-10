@@ -43,8 +43,12 @@ def test_parse_tree_union_parens():
     )
 
 
-@pytest.mark.parametrize("pattern", ["\\", "[a", "[a-bc-", "[]",
-                                     "{", "{123", "{123,", "{,123", "{,123,}", "{123,456,}"])
+@pytest.mark.parametrize("pattern", ["\\", "[a", "[a-bc-", "[]"])
 def test_tokenizer_errors_in_pattern_malformed(pattern):
     with pytest.raises(TokenizerError):
         list(Tokenizer(pattern).get_tokens())
+
+
+@pytest.mark.parametrize("pattern", ["{", "{123", "{123,", "{,123", "{,123,}", "{123,456,}"])
+def test_tokenizer_errors_in_pattern_nonmalformed(pattern):
+    list(Tokenizer(pattern).get_tokens())

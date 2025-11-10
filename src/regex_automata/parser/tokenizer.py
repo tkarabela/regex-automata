@@ -3,7 +3,7 @@ from typing import Iterator, NoReturn
 from .tokens import Token, LPar, RPar, Repetition, Pipe, CharacterSet, BoundaryAssertion, BoundaryAssertionSemantic
 from ..automata.rangeset import RangeSet, WORD_RANGESET, NONWORD_RANGESET, DIGIT_RANGESET, NONDIGIT_RANGESET, \
     WHITESPACE_RANGESET, NONWHITESPACE_RANGESET
-from ..errors import TokenizerError, UnsupportedSyntaxError
+from ..errors import TokenizerError, UnsupportedSyntaxError, RegexAutomataError
 from ..regex.flags import PatternFlag
 
 
@@ -11,6 +11,7 @@ class Tokenizer:
     class Reader:
         def __init__(self, tokenizer: "Tokenizer") -> None:
             self.tokenizer = tokenizer
+            self.tokenizer_initial_pos = tokenizer.pos
             self.start = tokenizer.pos + 1
             self.end = self.start
 
@@ -41,6 +42,14 @@ class Tokenizer:
         @property
         def text(self) -> str:
             return self.tokenizer.text[self.start:self.end]
+
+        def reset(self) -> None:
+            self.tokenizer.pos = self.tokenizer_initial_pos
+            self.start = self.tokenizer.pos + 1
+            self.end = self.start
+
+    class FailedToReadBraceRepetition(Exception):
+        pass
 
     def __init__(self, text: str, flags: PatternFlag = PatternFlag.NOFLAG) -> None:
         self.text = text
@@ -88,7 +97,11 @@ class Tokenizer:
                 case ")":
                     yield self.read_RPar(reader)
                 case "*" | "?" | "+" | "{":
-                    yield self.read_Repetition(reader)
+                    try:
+                        yield self.read_Repetition(reader)
+                    except self.FailedToReadBraceRepetition:
+                        reader.reset()
+                        yield self.read_CharacterSet(reader)
                 case "|":
                     yield self.read_Pipe(reader)
                 case ".":
@@ -132,45 +145,47 @@ class Tokenizer:
                     self.error(f"{c}{c2} quantifier is not supported", unsupported=True)
                 return Repetition(reader.span, reader.text, 1, None)
             case "{":
-                read_lower_limit = False
-                c = self.peek()
-                if c is None:
-                    self.error("bad repetition definition")
-                elif c == ",":
-                    rmin = 0
-                elif c.isdigit():
-                    rmin = reader.read_number()
-                    read_lower_limit = True
-                else:
-                    self.error("bad repetition definition")
-
-                c = self.peek()
-                if c is None:
-                    self.error("bad repetition definition")
-                elif c == ",":
-                    reader.read(",")
-
+                try:
+                    read_lower_limit = False
                     c = self.peek()
-                    if c == "}":
-                        rmax = None
-                    elif c is not None and c.isdigit():
-                        rmax = reader.read_number()
+                    if c is None:
+                        self.error("bad repetition definition")
+                    elif c == ",":
+                        rmin = 0
+                    elif c.isdigit():
+                        rmin = reader.read_number()
+                        read_lower_limit = True
                     else:
                         self.error("bad repetition definition")
-                elif c == "}":
-                    if not read_lower_limit:
-                        self.error("bad repetition definition (braced definition missing both limits)")
-                    rmax = rmin
-                else:
-                    self.error("bad repetition definition")
 
-                reader.read("}")
+                    c = self.peek()
+                    if c is None:
+                        self.error("bad repetition definition")
+                    elif c == ",":
+                        reader.read(",")
 
-                if (c2 := self.peek()) in ("?", "+"):
-                    self.error(f"{{...}}{c2} quantifier is not supported", unsupported=True)
+                        c = self.peek()
+                        if c == "}":
+                            rmax = None
+                        elif c is not None and c.isdigit():
+                            rmax = reader.read_number()
+                        else:
+                            self.error("bad repetition definition")
+                    elif c == "}":
+                        if not read_lower_limit:
+                            self.error("bad repetition definition (braced definition missing both limits)")
+                        rmax = rmin
+                    else:
+                        self.error("bad repetition definition")
 
-                return Repetition(reader.span, reader.text, rmin, rmax)
+                    reader.read("}")
 
+                    if (c2 := self.peek()) in ("?", "+"):
+                        self.error(f"{{...}}{c2} quantifier is not supported", unsupported=True)
+
+                    return Repetition(reader.span, reader.text, rmin, rmax)
+                except RegexAutomataError as e:
+                    raise self.FailedToReadBraceRepetition() from e
             case _:
                 self.error("bad repetition definition")
 

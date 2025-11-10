@@ -46,6 +46,8 @@ from regex_automata.errors import PatternError
                           # ("a||c|", "", True),
                           # ("a||c|", "a", True),
                           # ("a||c|", "c", True),
+                          ("{[^}]*}", "{foo bar}", True),
+                          ("x{3}{[^}]*}{3}", "xxx{foo bar}}}", True),
                           ])
 def test_fullmatch_regex(pattern: str, s: str, result: bool):
     assert (regex_automata.fullmatch(pattern, s) is not None) is result
