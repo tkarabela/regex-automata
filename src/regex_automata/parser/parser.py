@@ -125,8 +125,10 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | CharacterSet() | BoundaryAssertion():
+            case LPar() | CharacterSet():
                 G = self.p7()
+            case BoundaryAssertion():
+                G = self.p14()
             case _:
                 self.error()
 
@@ -152,8 +154,10 @@ class Parser:
         """
         # G
         match self.peek():
-            case LPar() | CharacterSet() | BoundaryAssertion():
+            case LPar() | CharacterSet():
                 G = self.p7()
+            case BoundaryAssertion():
+                G = self.p14()
             case _:
                 self.error()
 
@@ -190,8 +194,6 @@ class Parser:
                 H = self.p10()
             case CharacterSet():
                 H = self.p11()
-            case BoundaryAssertion():
-                H = self.p14()
             case _:
                 self.error()
 
@@ -274,7 +276,7 @@ class Parser:
     @rule
     def p14(self) -> AstNode:
         """
-        H  -> boundary_assertion
+        G  -> boundary_assertion
         """
         boundary = self.read(BoundaryAssertion)
         return AstBoundaryAssertion(boundary.semantic)

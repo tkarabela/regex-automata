@@ -54,7 +54,7 @@ Finite automaton accepting `"(foo)*bar|baz"` (ie. `pattern.nfa`):
 fail with `regex_automata.errors.UnsupportedSyntaxError`. In some edge cases, results differ:
 most notably when there are multiple greedy quantifiers next to each other.
 
-`regex-automata` passes 291/305 [`re` pattern tests](https://github.com/python/cpython/blob/main/Lib/test/re_tests.py),
+`regex-automata` passes 292/305 [`re` pattern tests](https://github.com/python/cpython/blob/main/Lib/test/re_tests.py),
 with additional 98 tests ignored due to testing unsupported features.
 
 - Library
@@ -108,7 +108,7 @@ The recursive descent parser uses the following LL(1) grammar:
 11.  H  → a                     (a character or character set)
 12.  E  → ε
 13.  F  → ε
-14.  H  → boundary_assertion    (one of: ^, $, \A, \Z, \b, \B)
+14.  G  → boundary_assertion    (one of: ^, $, \A, \Z, \b, \B)
 ```
 
 Which is derived from the following CFG:
@@ -121,9 +121,9 @@ F → G F
 F → G
 G → H *
 G → H
+G → boundary_assertion
 H → ( E )
 H → a
-H → boundary_assertion
 ```
 
 Which is derived from the following CFG:
