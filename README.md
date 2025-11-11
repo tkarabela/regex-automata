@@ -54,7 +54,7 @@ Finite automaton accepting `"(foo)*bar|baz"` (ie. `pattern.nfa`):
 fail with `regex_automata.errors.UnsupportedSyntaxError`. In some edge cases, results differ:
 most notably when there are multiple greedy quantifiers next to each other.
 
-`regex-automata` passes 297/305 [`re` pattern tests](https://github.com/python/cpython/blob/main/Lib/test/re_tests.py),
+`regex-automata` passes 299/305 [`re` pattern tests](https://github.com/python/cpython/blob/main/Lib/test/re_tests.py),
 with additional 98 tests ignored due to testing unsupported features.
 
 - Library

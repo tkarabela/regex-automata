@@ -218,10 +218,10 @@ class Tokenizer:
                     case "S":
                         reader.read("S")
                         return CharacterSet(reader.span, reader.text, set=NONWHITESPACE_RANGESET)
-                    case "a" | "b" | "f" | "n" | "r" | "t" | "v":
+                    case "a" | "b" | "f" | "n" | "r" | "t" | "v" | "0":
                         c = reader.read()
                         s = {
-                            "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+                            "a": "\a", "b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v", "0": "\0",
                         }[c]
                         return CharacterSet(reader.span, reader.text, set=RangeSet([ord(self.normalize_case(s))]))
                     case "N" | "u" | "U" | "x":
