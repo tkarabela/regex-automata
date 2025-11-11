@@ -645,6 +645,7 @@ def test_re_tests(spec):
                     except IndexError:
                         value = "Error"
                     env[f"g{i}"] = value
+                env.update(m.groupdict("None"))
                 test_string_result = eval(test_string, env)
                 assert test_string_result == test_string_expected_result
 

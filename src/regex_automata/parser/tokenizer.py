@@ -354,8 +354,14 @@ class Tokenizer:
                 match self.peek():
                     case "<":
                         reader.read("<")
-                        name_chars = []
+                        name_chars: list[str] = []
                         while (c2 := reader.read()) != ">":
+                            if not name_chars:
+                                if c2 != "_" and not c2.isalpha():
+                                    self.error(f"bad character in group name: {c2!r}")
+                            else:
+                                if c2 != "_" and not c2.isalnum():
+                                    self.error(f"bad character in group name: {c2!r}")
                             name_chars.append(c2)
                         name = "".join(name_chars)
                         if not name:
