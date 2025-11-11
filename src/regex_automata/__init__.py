@@ -21,16 +21,16 @@ def search(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> Mat
     return Pattern(pattern, flags).search(s)
 
 
-def finditer(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> Iterator[Match]:
-    yield from Pattern(pattern, flags).finditer(s)
+def finditer(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG, all_matches: bool = False) -> Iterator[Match]:
+    yield from Pattern(pattern, flags).finditer(s, all_matches=all_matches)
 
 
 def compile(pattern: str, flags: PatternFlag = PatternFlag.NOFLAG, epsilon_free: bool = True) -> Pattern:
     return Pattern(pattern, flags, epsilon_free)
 
 
-def findall(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> list[str | None] | list[tuple[str | None, ...]]:
-    return Pattern(pattern, flags).findall(s)
+def findall(pattern: str, s: str, flags: PatternFlag = PatternFlag.NOFLAG, all_matches: bool = False) -> list[str | None] | list[tuple[str | None, ...]]:
+    return Pattern(pattern, flags).findall(s, all_matches=all_matches)
 
 
 def sub(pattern: str, repl: str | Callable[[Match], str], s: str, count: int = 0, flags: PatternFlag = PatternFlag.NOFLAG) -> str:

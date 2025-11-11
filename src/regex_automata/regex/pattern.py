@@ -79,13 +79,13 @@ class Pattern:
         except StopIteration:
             return None
 
-    def finditer(self, text: str, start: int = 0, end: int | None = None) -> Iterator[Match]:
+    def finditer(self, text: str, start: int = 0, end: int | None = None, all_matches: bool = False) -> Iterator[Match]:
         evaluator = NFAEvaluator(self, self.flags)
-        yield from evaluator.finditer(text, start, end)
+        yield from evaluator.finditer(text, start, end, all_matches=all_matches)
 
-    def findall(self, s: str, flags: PatternFlag = PatternFlag.NOFLAG) -> list[str | None] | list[tuple[str | None, ...]]:
+    def findall(self, s: str, flags: PatternFlag = PatternFlag.NOFLAG, all_matches: bool = False) -> list[str | None] | list[tuple[str | None, ...]]:
         output = []
-        for m in self.finditer(s, flags):
+        for m in self.finditer(s, flags, all_matches=all_matches):
             match m.groups():
                 case ():
                     output.append(m.group(0))

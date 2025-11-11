@@ -37,6 +37,11 @@ pattern2.tokens
 # [CharacterSet(span=(0, 7), text='[a-z_-]', set=RangeSet(((45, 46), (95, 96), (97, 123)))),
 #  CharacterSet(span=(7, 17), text='[a-z0-9_-]', set=RangeSet(((45, 46), (48, 58), (95, 96), (97, 123)))),
 #  Repetition(span=(17, 18), text='*', min=0, max=None)]
+
+list(re.finditer(r"[0-9]{2,}", "123"))
+# [<Match span=(0, 3), match='123'>]
+list(re.finditer(r"[0-9]{2,}", "123", all_matches=True))
+# [<Match span=(0, 3), match='123'>, <Match span=(0, 2), match='12'>, <Match span=(1, 3), match='23'>]
 ```
 
 Abstract syntax tree of `"(foo)*bar|baz"` (ie. `pattern.ast`):

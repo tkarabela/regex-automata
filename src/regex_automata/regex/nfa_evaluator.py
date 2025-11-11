@@ -122,7 +122,7 @@ class NFAEvaluator:
             raise ValueError("Expected NFA with exactly one final state (end of group 0)")
         self.final_state = next(iter(self.nfa.final_states))
 
-    def finditer(self, text: str, start: int = 0, end: int | None = None, search: bool = True) -> Iterator[Match]:
+    def finditer(self, text: str, start: int = 0, end: int | None = None, search: bool = True, all_matches: bool = False) -> Iterator[Match]:
         original_text = text
         if self.flags & PatternFlag.IGNORECASE:
             text = text.lower()
@@ -151,6 +151,7 @@ class NFAEvaluator:
 
                 loop = False
                 candidate_final_head: Head | None = None
+                all_final_heads = set()
                 while queue:
                     # do epsilon transitions
                     logger.info(f"\tprocessing bucket {start=}")
@@ -164,6 +165,8 @@ class NFAEvaluator:
                     entered_final, left_final, final_heads = self.apply_character_transitions(queue, text, start_, end_)
                     for head in queue:
                         logger.info(f"\t\t\t-> {head}")
+                    if all_matches:
+                        all_final_heads.update(final_heads)
 
                     # do epsilon transitions
                     logger.info("\t\tepsilon transitions")
@@ -182,8 +185,10 @@ class NFAEvaluator:
 
                     logger.info("\tlooping due to a candidate match")
 
-                if candidate_final_head:
-                    final_head = candidate_final_head
+                if not all_matches and candidate_final_head is not None:
+                    all_final_heads = {candidate_final_head}
+
+                for final_head in all_final_heads:
                     yield Match(
                         re=self.pattern,
                         pos=start_,
@@ -193,11 +198,12 @@ class NFAEvaluator:
                     )
                     logger.info(f">>>> found {final_head=} <<<<")
 
-                    for start, queue in buckets.items():
-                        if start < final_head.position:
-                            logger.info(f"\tclearing bucket {start=} (less than {final_head.position=})")
-                            queue.clear()
-                            last_match_position = final_head.position
+                    if not all_matches:
+                        for start, queue in buckets.items():
+                            if start < final_head.position:
+                                logger.info(f"\tclearing bucket {start=} (less than {final_head.position=})")
+                                queue.clear()
+                                last_match_position = final_head.position
 
         logger.info("all done")
 
