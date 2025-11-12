@@ -1,6 +1,10 @@
 [![CI - build](https://img.shields.io/github/actions/workflow/status/tkarabela/regex-automata/main.yml?branch=master)](https://github.com/tkarabela/regex-automata/actions)
 [![CI - coverage](https://img.shields.io/codecov/c/github/tkarabela/regex-automata)](https://app.codecov.io/github/tkarabela/regex-automata)
 [![MyPy & Ruffle checked](https://img.shields.io/badge/MyPy%20%26%20Ruffle-checked-blue?style=flat)](https://github.com/tkarabela/regex-automata/actions)
+[![PyPI - Version](https://img.shields.io/pypi/v/regex-automata.svg?style=flat)](https://pypi.org/project/regex-automata)
+[![PyPI - Status](https://img.shields.io/pypi/status/regex-automata.svg?style=flat)](https://pypi.org/project/regex-automata)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/regex-automata.svg?style=flat)](https://pypi.org/project/regex-automata)
+[![License](https://img.shields.io/pypi/l/regex-automata.svg?style=flat)](https://pypi.org/project/regex-automata)
 
 # regex-automata
 
@@ -10,6 +14,12 @@ are supported, though, and it behaves differently in edge cases).
 
 Intended as a white-box implementation, it gives full tracing output for parsing and matching.
 Diagrams of abstract syntax tree and the automaton are also available.
+
+## Installation
+
+```commandline
+pip install regex-automata
+```
 
 ## Usage
 
